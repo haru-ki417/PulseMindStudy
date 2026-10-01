@@ -101,6 +101,11 @@ flowchart LR
 
 ## 動かし方
 
+### いちばん簡単な方法（Windows）
+
+フォルダの中の **`start-demo.cmd` をダブルクリック**します。必要なものを確かめてから起動し、準備ができるとブラウザが開きます。
+見本のアカウント（`demo@example.com` / `Demo!2026pass`）に、120日分の見本データが入っています。
+
 ### Windows（Visual Studio / LocalDB）
 
 ```powershell
