@@ -34,7 +34,7 @@ az deployment group create `
 終わると `appName`・`appUrl`・`grantSql` が表示されます（あとで使います）。
 
 - 既定では Azure SQL Database の **無料枠**（サーバーレス）を使います。すでに無料枠を使っている場合は `useFreeSqlOffer=false` を付けてください（Basic 料金になります）。
-- App Service は B1（月 2,000 円前後）です。使わない間は `az webapp stop` で止められます（プラン料金はかかります）。
+- App Service は既定で B1（月 2,000 円前後）です。無料で試すときは `appServiceSku=F1` を付けます（1日の処理時間に上限があり、使われないと休止します。正常性チェックの機能はありません）。
 
 ## 2. アプリにデータベースの権限を与える（最初の1回だけ）
 

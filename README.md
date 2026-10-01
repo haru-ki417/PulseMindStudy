@@ -5,6 +5,8 @@
 
 [![CI](https://github.com/haru-ki417/PulseMindStudy/actions/workflows/ci.yml/badge.svg)](https://github.com/haru-ki417/PulseMindStudy/actions/workflows/ci.yml)
 
+**公開中: https://pulsemind-datzdltheb62e.azurewebsites.net**（Azure App Service の無料プランで動かしているため、しばらく使われていないと最初の表示に数十秒かかります）
+
 ![ホーム画面](docs/screenshots/home.png)
 
 | 集中モード | 週の振り返りカード | スマートフォン |
