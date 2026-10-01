@@ -12,7 +12,7 @@ async function fetchWithErrorHandling(url, options = {}) {
     if (!response.ok) {
         const text = await response.text();
         console.error(text);
-        throw new Error(`The server responded with status ${response.status}.`);
+        throw new Error(`サーバーとの通信に失敗しました（${response.status}）。時間をおいてもう一度お試しください。`);
     }
     return response;
 }
@@ -68,7 +68,7 @@ customElements.define('passkey-submit', class extends HTMLElement {
 
     async obtainCredential(useConditionalMediation, signal) {
         if (!browserSupportsPasskeys) {
-            throw new Error('Some passkey features are missing. Please update your browser.');
+            throw new Error('このブラウザはパスキーに対応していません。ブラウザを最新版に更新してください。');
         }
 
         const headers = {
@@ -82,7 +82,7 @@ customElements.define('passkey-submit', class extends HTMLElement {
             const mediation = useConditionalMediation ? 'conditional' : undefined;
             return await requestCredential(email, mediation, headers, signal);
         } else {
-            throw new Error(`Unknown passkey operation '${this.attrs.operation}'.`);
+            throw new Error(`不明なパスキー操作です（${this.attrs.operation}）。`);
         }
     }
 
@@ -107,7 +107,7 @@ customElements.define('passkey-submit', class extends HTMLElement {
                 return;
             }
             const errorMessage = error.name === 'NotAllowedError'
-                ? 'No passkey was provided by the authenticator.'
+                ? 'パスキーが選択されなかったか、操作がキャンセルされました。'
                 : error.message;
             formData.append(`${this.attrs.name}.Error`, errorMessage);
         }

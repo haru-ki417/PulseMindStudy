@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/DeletePersonalData"
+@page "/Account/Manage/DeletePersonalData"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -9,33 +9,39 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<DeletePersonalData> Logger
 
-<PageTitle>Delete Personal Data</PageTitle>
+<PageTitle>アカウントの削除 - Pulse &amp; Mind Study</PageTitle>
 
+<h2>アカウントの削除</h2>
 <StatusMessage Message="@message" />
 
-<h3>Delete Personal Data</h3>
+<Notice Kind="error">
+    <strong>この操作は取り消せません。</strong><br />
+    アカウントを削除すると、次のデータがすべて完全に削除され、あとから復元することはできません。
+</Notice>
+<ul class="delete-list">
+    <li>学習の記録（学習時間・タイマーの履歴）</li>
+    <li>毎日の記録（気分・睡眠・歩数など）</li>
+    <li>心拍数のデータ</li>
+    <li>登録した機器（Arduino などのデバイス）</li>
+    <li>アカウント情報（メールアドレス・パスワード・パスキー・2段階認証の設定）</li>
+</ul>
+<p class="muted small">必要なデータがある場合は、削除する前に「<a href="Account/Manage/PersonalData">個人データ</a>」からダウンロードしてください。</p>
 
-<div class="alert alert-warning" role="alert">
-    <p>
-        <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
-    </p>
-</div>
-
-<div>
-    <EditForm Model="Input" FormName="delete-user" OnValidSubmit="OnValidSubmitAsync" method="post">
-        <DataAnnotationsValidator />
-        <ValidationSummary class="text-danger" role="alert" />
-        @if (requirePassword)
-        {
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Please enter your password." />
-                <label for="Input.Password" class="form-label">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
-            </div>
-        }
-        <button class="w-100 btn btn-lg btn-danger" type="submit">Delete data and close my account</button>
-    </EditForm>
-</div>
+<EditForm Model="Input" FormName="delete-user" OnValidSubmit="OnValidSubmitAsync" method="post" class="stack form-narrow">
+    <DataAnnotationsValidator />
+    @if (requirePassword)
+    {
+        <div class="field">
+            <label for="Input.Password">確認のため、パスワードを入力してください</label>
+            <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="input-pm" autocomplete="current-password" aria-required="true" />
+            <ValidationMessage For="() => Input.Password" />
+        </div>
+    }
+    <div class="row-pm">
+        <button class="btn-pm danger solid" type="submit"><Icon Name="trash" /> すべてのデータを削除して退会する</button>
+        <a class="btn-pm ghost" href="Account/Manage/PersonalData">キャンセル</a>
+    </div>
+</EditForm>
 
 @code {
     private string? message;
@@ -71,7 +77,7 @@
 
         if (requirePassword && !await UserManager.CheckPasswordAsync(user, Input.Password))
         {
-            message = "Error: Incorrect password.";
+            message = "エラー: パスワードが正しくありません。";
             return;
         }
 
@@ -92,6 +98,7 @@
     private sealed class InputModel
     {
         [DataType(DataType.Password)]
+        [Display(Name = "パスワード")]
         public string Password { get; set; } = "";
     }
 }

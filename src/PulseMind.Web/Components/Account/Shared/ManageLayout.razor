@@ -1,17 +1,17 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @layout PulseMind.Web.Components.Layout.MainLayout
 
-<h1>Manage your account</h1>
+<div class="page-head">
+    <div>
+        <a class="back-link" href="settings"><Icon Name="chevron-left" /> 設定に戻る</a>
+        <h1>アカウント</h1>
+        <p>ログイン情報とセキュリティ、個人データを管理します。</p>
+    </div>
+</div>
 
-<div>
-    <h2>Change your account settings</h2>
-    <hr />
-    <div class="row">
-        <div class="col-lg-3">
-            <ManageNavMenu />
-        </div>
-        <div class="col-lg-9">
-            @Body
-        </div>
+<div class="manage">
+    <ManageNavMenu />
+    <div class="card-pm manage-body">
+        @Body
     </div>
 </div>

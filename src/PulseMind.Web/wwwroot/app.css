@@ -446,3 +446,47 @@ textarea.input-pm { min-height: 76px; resize: vertical; }
     .manage-nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
     .manage-nav .nav-link-pm { white-space: nowrap; width: auto; }
 }
+
+/* アカウント画面（ログイン・登録・アカウント管理）の細かな部品 */
+.status-message { margin-bottom: 14px; }
+.auth-card > .notice { margin-bottom: 14px; }
+.auth-card .form-check { margin: 0; font-size: .9rem; }
+.auth-card .form-check a { text-decoration: underline; }
+.auth-note { margin: 2px 0 0; text-align: center; }
+.manage-body > h2 { font-size: 1.2rem; margin-bottom: .35rem; }
+.manage-body > .muted { margin-bottom: 18px; font-size: .92rem; }
+.manage-body > .notice { margin: 12px 0 16px; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 6px; font-size: .85rem; font-weight: 600; color: var(--pm-text-2); }
+.back-link svg { width: 16px; height: 16px; }
+.form-narrow { max-width: 440px; }
+.form-actions { margin-top: 18px; }
+.section-pm { padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--pm-line); }
+.section-pm h3 { margin-bottom: .25rem; }
+.section-pm h3 + .row-pm { margin-top: 10px; }
+.danger-zone h3 { color: var(--pm-danger); }
+.delete-list { margin: 14px 0; padding-left: 1.3em; color: var(--pm-text-2); font-size: .92rem; }
+.recovery-codes { list-style: none; margin: 16px 0; padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; background: var(--pm-surface-2); border-radius: 10px; max-width: 440px; }
+.recovery-codes code { color: var(--pm-text); font-size: .95rem; }
+.steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 18px; }
+.steps > li::marker { font-weight: 700; color: var(--pm-primary); }
+.steps h3 { font-size: .98rem; margin-bottom: .2rem; }
+.setup-key { margin: 6px 0 8px; }
+.setup-key kbd { display: inline-block; padding: 8px 12px; border-radius: 8px; background: var(--pm-surface-2); color: var(--pm-text); border: 1px solid var(--pm-line); font-size: 1rem; letter-spacing: .04em; white-space: normal; box-shadow: none; }
+
+@media (max-width: 600px) {
+    /* 6項目を3列×2段のタブにして、選択中の項目が常に見えるようにする */
+    .manage-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; overflow: visible; padding-bottom: 0; }
+    .manage-nav .nav-link-pm { flex-direction: column; justify-content: center; gap: 2px; padding: 8px 2px; font-size: .74rem; text-align: center; white-space: nowrap; width: auto; }
+    .manage-nav .nav-link-pm svg { width: 18px; height: 18px; }
+    .manage { gap: 14px; }
+    .manage-body { padding: 18px 16px; }
+}
+@media (max-width: 480px) {
+    .public-header { padding: 12px 16px; gap: 8px; }
+    .public-header .brand-name { white-space: nowrap; }
+    .public-header .row-pm { flex-wrap: nowrap; gap: 4px; }
+    .public-header .btn-pm { min-height: 36px; padding: 6px 12px; font-size: .85rem; white-space: nowrap; }
+    .public-main { padding: 8px 16px 40px; }
+    .auth-wrap { margin-top: 8px; }
+    .auth-card { padding: 22px 18px; }
+}

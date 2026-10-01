@@ -1,7 +1,12 @@
-﻿@page "/Account/InvalidUser"
+@page "/Account/InvalidUser"
 
-<PageTitle>Invalid user</PageTitle>
+<PageTitle>アカウントを読み込めません - Pulse &amp; Mind Study</PageTitle>
 
-<h3>Invalid user</h3>
-
-<StatusMessage />
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>アカウントを読み込めません</h1>
+        <StatusMessage />
+        <p class="muted">ログインし直すと解決することがあります。</p>
+        <a class="btn-pm primary block" href="Account/Login">ログイン画面へ</a>
+    </div>
+</div>
