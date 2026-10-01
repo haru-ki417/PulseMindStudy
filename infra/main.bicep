@@ -21,7 +21,7 @@ param sqlAdminLogin string
 @description('データベース管理者にする Entra ID ユーザーのオブジェクト ID（az ad signed-in-user show --query id -o tsv）')
 param sqlAdminObjectId string
 
-@description('App Service プランの価格レベル（B1 以上を推奨。Blazor Server は常時接続が必要なため F1 は不向き）')
+@description('App Service プランの価格レベル。F1 は無料（1日の処理時間に上限があり、使われないと休止する）、B1 は常時起動（月 2,000 円前後）')
 param appServiceSku string = 'B1'
 
 @description('Azure SQL Database の無料枠を使う（1 つのサブスクリプションで使える無料データベースは限られる）')
@@ -131,7 +131,8 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
       http20Enabled: true
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      healthCheckPath: '/healthz' // データベースに触れない確認（データベースが休止できるように）
+      // データベースに触れない確認（データベースが休止できるように）。無料プラン（F1）には正常性チェックの機能が無い
+      healthCheckPath: appServiceSku == 'F1' ? null : '/healthz'
       appSettings: concat([
         { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
         { name: 'Database__MigrateOnStartup', value: 'true' }
