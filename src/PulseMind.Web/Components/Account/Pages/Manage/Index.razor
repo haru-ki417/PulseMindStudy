@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage"
+@page "/Account/Manage"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -8,33 +8,32 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Profile</PageTitle>
+<PageTitle>プロフィール - Pulse &amp; Mind Study</PageTitle>
 
-<h3>Profile</h3>
+<h2>プロフィール</h2>
+<p class="muted">ログインに使うメールアドレスと、連絡先の電話番号です。表示名や学習目標は<a href="settings">設定</a>で変更できます。</p>
 <StatusMessage />
 
-<div class="row">
-    <div class="col-xl-6">
-        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <input type="text" value="@username" id="username" class="form-control" placeholder="Choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
-            </div>
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Enter your phone number" />
-                <label for="Input.PhoneNumber" class="form-label">Phone number</label>
-                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
-        </EditForm>
+<EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post" class="stack form-narrow">
+    <DataAnnotationsValidator />
+    <div class="field">
+        <label for="email">メールアドレス</label>
+        <input type="email" value="@email" id="email" class="input-pm" readonly aria-describedby="email-hint" />
+        <span class="hint" id="email-hint">変更するときは「<a href="Account/Manage/Email">メールアドレス</a>」から手続きしてください。</span>
     </div>
-</div>
+    <div class="field">
+        <label for="Input.PhoneNumber">電話番号（任意）</label>
+        <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" type="tel" class="input-pm" autocomplete="tel" placeholder="090-1234-5678" />
+        <ValidationMessage For="() => Input.PhoneNumber" />
+    </div>
+    <div class="row-pm">
+        <button type="submit" class="btn-pm primary"><Icon Name="check" /> 保存</button>
+    </div>
+</EditForm>
 
 @code {
     private ApplicationUser? user;
-    private string? username;
+    private string? email;
     private string? phoneNumber;
 
     [CascadingParameter]
@@ -54,7 +53,7 @@
             return;
         }
 
-        username = await UserManager.GetUserNameAsync(user);
+        email = await UserManager.GetEmailAsync(user);
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
 
         Input.PhoneNumber ??= phoneNumber;
@@ -73,19 +72,19 @@
             var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
             if (!setPhoneResult.Succeeded)
             {
-                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to set phone number.", HttpContext);
+                RedirectManager.RedirectToCurrentPageWithStatus("エラー: 電話番号を保存できませんでした。", HttpContext);
                 return;
             }
         }
 
         await SignInManager.RefreshSignInAsync(user);
-        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+        RedirectManager.RedirectToCurrentPageWithStatus("プロフィールを保存しました。", HttpContext);
     }
 
     private sealed class InputModel
     {
-        [Phone]
-        [Display(Name = "Phone number")]
+        [Phone(ErrorMessage = "電話番号の形式が正しくありません。")]
+        [Display(Name = "電話番号")]
         public string? PhoneNumber { get; set; }
     }
 }

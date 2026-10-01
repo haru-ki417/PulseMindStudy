@@ -1,4 +1,4 @@
-﻿@page "/Account/LoginWithRecoveryCode"
+@page "/Account/LoginWithRecoveryCode"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -9,27 +9,23 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<LoginWithRecoveryCode> Logger
 
-<PageTitle>Recovery code verification</PageTitle>
+<PageTitle>回復用コードでログイン - Pulse &amp; Mind Study</PageTitle>
 
-<h1>Recovery code verification</h1>
-<hr />
-<StatusMessage Message="@message" />
-<p>
-    You have requested to log in with a recovery code. This login will not be remembered until you provide
-    an authenticator app code at log in or disable 2FA and log in again.
-</p>
-<div class="row">
-    <div class="col-md-4">
-        <EditForm Model="Input" FormName="login-with-recovery-code" OnValidSubmit="OnValidSubmitAsync" method="post">
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>回復用コードでログイン</h1>
+        <p class="muted">2段階認証を設定したときに保存した回復用コードを1つ入力してください。各コードは1回だけ使えます。</p>
+        <StatusMessage Message="@message" />
+        <EditForm Model="Input" FormName="login-with-recovery-code" OnValidSubmit="OnValidSubmitAsync" method="post" class="stack">
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.RecoveryCode" id="Input.RecoveryCode" class="form-control" autocomplete="off" placeholder="RecoveryCode" />
-                <label for="Input.RecoveryCode" class="form-label">Recovery Code</label>
-                <ValidationMessage For="() => Input.RecoveryCode" class="text-danger" />
+            <div class="field">
+                <label for="Input.RecoveryCode">回復用コード</label>
+                <InputText @bind-Value="Input.RecoveryCode" id="Input.RecoveryCode" class="input-pm num" autocomplete="off" />
+                <ValidationMessage For="() => Input.RecoveryCode" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+            <button type="submit" class="btn-pm primary block lg">ログイン</button>
         </EditForm>
+        <p class="faint small auth-note">このログインは記憶されません。次回は認証アプリのコードを入力するか、2段階認証をいったん無効にしてからログインし直してください。</p>
     </div>
 </div>
 
@@ -73,15 +69,15 @@
         else
         {
             Logger.LogWarning("Invalid recovery code entered for user with ID '{UserId}' ", userId);
-            message = "Error: Invalid recovery code entered.";
+            message = "エラー: 回復用コードが正しくないか、すでに使用されています。";
         }
     }
 
     private sealed class InputModel
     {
-        [Required]
+        [Required(ErrorMessage = "{0}を入力してください。")]
         [DataType(DataType.Text)]
-        [Display(Name = "Recovery Code")]
+        [Display(Name = "回復用コード")]
         public string RecoveryCode { get; set; } = "";
     }
 }

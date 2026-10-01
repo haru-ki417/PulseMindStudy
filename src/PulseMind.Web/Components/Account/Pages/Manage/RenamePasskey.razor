@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/RenamePasskey/{Id}"
+@page "/Account/Manage/RenamePasskey/{Id}"
 
 @using PulseMind.Core.Data
 @using System.ComponentModel.DataAnnotations
@@ -8,25 +8,28 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityRedirectManager RedirectManager
 
-<EditForm Model="Input" OnValidSubmit="Rename" FormName="rename-passkey" method="post">
+<PageTitle>パスキーの名前 - Pulse &amp; Mind Study</PageTitle>
+
+@if (passkey?.Name is { } name)
+{
+    <h2>パスキーの名前を変更</h2>
+    <p class="muted">「@name」の新しい名前を入力してください。</p>
+}
+else
+{
+    <h2>パスキーに名前を付ける</h2>
+    <p class="muted">どの端末のパスキーか分かるように、名前を付けてください（例: 「iPhone」「自宅のパソコン」）。</p>
+}
+<EditForm Model="Input" OnValidSubmit="Rename" FormName="rename-passkey" method="post" class="stack form-narrow">
     <DataAnnotationsValidator />
-    @if (passkey?.Name is { } name)
-    {
-        <h4>Enter a new name for your "@name" passkey</h4>
-    }
-    else
-    {
-        <h4>Enter a name for your passkey</h4>
-    }
-    <hr />
-    <ValidationSummary class="text-danger" role="alert" />
-    <div class="form-floating mb-3">
-        <InputText @bind-Value="Input.Name" id="Input.Name" class="form-control" aria-required="true" placeholder="My passkey" />
-        <label for="Input.Name" class="form-label">Passkey name</label>
-        <ValidationMessage For="() => Input.Name" class="text-danger" />
+    <div class="field">
+        <label for="Input.Name">パスキーの名前</label>
+        <InputText @bind-Value="Input.Name" id="Input.Name" class="input-pm" aria-required="true" placeholder="例: iPhone" />
+        <ValidationMessage For="() => Input.Name" />
     </div>
-    <div>
-        <button type="submit" class="w-100 btn btn-lg btn-primary">Continue</button>
+    <div class="row-pm">
+        <button type="submit" class="btn-pm primary">保存</button>
+        <a class="btn-pm ghost" href="Account/Manage/Passkeys">キャンセル</a>
     </div>
 </EditForm>
 
@@ -61,14 +64,14 @@
         }
         catch (FormatException)
         {
-            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Error: The specified passkey ID had an invalid format.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "エラー: パスキーの指定が正しくありません。", HttpContext);
             return;
         }
 
         passkey = await UserManager.GetPasskeyAsync(user, credentialId);
         if (passkey is null)
         {
-            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Error: The specified passkey could not be found.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "エラー: 指定されたパスキーが見つかりませんでした。", HttpContext);
             return;
         }
     }
@@ -79,17 +82,18 @@
         var result = await UserManager.AddOrUpdatePasskeyAsync(user!, passkey);
         if (!result.Succeeded)
         {
-            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Error: The passkey could not be updated.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "エラー: パスキーの名前を変更できませんでした。", HttpContext);
             return;
         }
 
-        RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Passkey updated successfully.", HttpContext);
+        RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "パスキーの名前を保存しました。", HttpContext);
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(200, ErrorMessage = "Passkey names must be no longer than {1} characters.")]
+        [Required(ErrorMessage = "{0}を入力してください。")]
+        [StringLength(200, ErrorMessage = "{0}は{1}文字以内で入力してください。")]
+        [Display(Name = "パスキーの名前")]
         public string Name { get; set; } = "";
     }
 }
