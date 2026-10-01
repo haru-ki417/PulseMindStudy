@@ -1,0 +1,31 @@
+# ---- 秘密情報（絶対に公開しない）
+appsettings.Local.json
+appsettings.*.Local.json
+*.pfx
+.env
+*.publishsettings
+*.azurePubxml
+
+# ---- 元の試作（社内 LAN の IP などを含むため公開しない）
+_prototype/
+
+# ---- 個人の健康データ（ヘルスケアの書き出し・センサーのログ）
+export.xml
+export_cda.xml
+apple_health_export/
+*.csv.log
+
+# ---- Visual Studio / Rider / .NET
+.vs/
+.idea/
+bin/
+obj/
+*.user
+*.suo
+*.rsuser
+[Pp]ublish/
+TestResults/
+
+# ---- OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+# EF Core が自動生成するコード
+[*.cs]
+generated_code = true
