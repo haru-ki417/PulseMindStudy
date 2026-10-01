@@ -7,3 +7,4 @@
 *.yml text eol=lf
 *.png binary
 *.ico binary
+*.cmd text eol=crlf
