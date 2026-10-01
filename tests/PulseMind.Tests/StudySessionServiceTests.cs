@@ -1,3 +1,4 @@
+using PulseMind.Core.Domain;
 using PulseMind.Core;
 using PulseMind.Core.Study;
 using PulseMind.Core.Time;
@@ -118,5 +119,39 @@ public class StudySessionServiceTests
         Assert.Equal(90, minutes[new DateOnly(2026, 3, 30)], 6);
         Assert.Equal(0, minutes[new DateOnly(2026, 3, 31)]);
         Assert.Equal(20, minutes[new DateOnly(2026, 4, 1)], 6);
+    }
+}
+
+public class StudySessionEdgeTests
+{
+    [Fact]
+    public async Task 計測中の学習は1人1つまでとデータベースでも保証する()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        string user = await db.AddUserAsync();
+        var now = db.Time.GetUtcNow().UtcDateTime;
+
+        await using var ctx = db.NewContext();
+        ctx.StudySessions.Add(new StudySession { UserId = user, StartedAtUtc = now, CreatedAtUtc = now });
+        ctx.StudySessions.Add(new StudySession { UserId = user, StartedAtUtc = now.AddSeconds(1), CreatedAtUtc = now });
+        await Assert.ThrowsAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(() => ctx.SaveChangesAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task 止め忘れのタイマーがあっても12時間より後の時間帯は手入力できる()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        string user = await db.AddUserAsync();
+        var service = new StudySessionService(db.Factory, db.Time);
+
+        await service.StartAsync(user, "数学", TestContext.Current.CancellationToken);
+        db.Time.Advance(TimeSpan.FromHours(30));
+        var now = db.Time.GetUtcNow().UtcDateTime;
+
+        // 開始から 12 時間以内（止め忘れの範囲）は重なりとして断る
+        await Assert.ThrowsAsync<UserInputException>(() =>
+            service.AddManualAsync(user, new ManualStudyInput(now.AddHours(-25), now.AddHours(-24), "英語"), TestContext.Current.CancellationToken));
+        // それより後は記録できる
+        await service.AddManualAsync(user, new ManualStudyInput(now.AddHours(-2), now.AddHours(-1), "英語"), TestContext.Current.CancellationToken);
     }
 }

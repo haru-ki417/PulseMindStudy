@@ -29,3 +29,12 @@ TestResults/
 # ---- OS
 .DS_Store
 Thumbs.db
+
+# ---- 手元のデータベース（SQLite での動作確認）と、書き出し・取り込みのファイル（健康データを含む）
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.zip
+*.csv
+!**/fixtures/**/*.csv

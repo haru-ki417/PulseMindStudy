@@ -75,7 +75,9 @@ public sealed class DailyRecordService(IDbContextFactory<PulseMindDbContext> dbF
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(sleepHours);
-        var days = steps.Keys.Union(sleepHours.Keys).ToList();
+        // 端末の時計の誤りなどで未来の日付が入っていても、記録しない（日付変更線の差を考えて 1 日の余裕を持たせる）
+        var latest = DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddDays(1);
+        var days = steps.Keys.Union(sleepHours.Keys).Where(d => d <= latest).ToList();
         if (days.Count == 0) return 0;
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);

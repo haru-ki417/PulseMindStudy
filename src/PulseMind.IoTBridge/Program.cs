@@ -18,7 +18,10 @@ internal static class BridgeEntry
     private static async Task Main(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
-        builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true); // 個人の設定（リポジトリには含めない）
+        // 個人の設定（リポジトリには含めない）。環境変数とコマンドラインの指定がさらに優先されるよう、そのあとに読み直す
+        builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true)
+            .AddEnvironmentVariables()
+            .AddCommandLine(args);
 
         builder.Services.Configure<BridgeOptions>(builder.Configuration.GetSection("Bridge"));
         builder.Services.AddSingleton(TimeProvider.System);

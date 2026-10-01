@@ -131,11 +131,11 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
       http20Enabled: true
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      healthCheckPath: '/healthz'
+      healthCheckPath: '/healthz' // データベースに触れない確認（データベースが休止できるように）
       appSettings: concat([
         { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
         { name: 'Database__MigrateOnStartup', value: 'true' }
-        { name: 'ReverseProxy__TrustForwardedHeaders', value: 'true' }
+        // 利用者の IP アドレスは App Service の既定（ASPNETCORE_FORWARDEDHEADERS_ENABLED）で受け取る。アプリ側で二重に処理しない
         { name: 'Identity__RequireConfirmedAccount', value: string(useSmtp) }
       ], useSmtp ? [
         { name: 'Smtp__Host', value: smtpHost }

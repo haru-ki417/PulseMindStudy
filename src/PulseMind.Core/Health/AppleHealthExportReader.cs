@@ -40,43 +40,55 @@ public static class AppleHealthExportReader
         "HKCategoryValueSleepAnalysisAsleepREM",
     };
 
+    /// <summary>読み取る export.xml の大きさの上限（数年分でも収まる大きさ。極端に大きい細工ファイルを避ける）</summary>
+    public const long MaxXmlBytes = 4L * 1024 * 1024 * 1024;
+
+    /// <summary>取り込む心拍の測定値の上限（Apple Watch で約 5 年分。これを超える場合は期間を短くしてもらう）</summary>
+    public const int MaxHeartRateSamples = 2_000_000;
+
+    /// <summary>歩数を「日 × 記録した機器」ごとに数えるときの組み合わせの上限</summary>
+    private const int MaxStepKeys = 50_000;
+
     /// <summary>zip でも xml でも読めるようにする。zip のときは中の export.xml を探す。</summary>
     public static async Task<AppleHealthData> ReadAsync(
         Stream stream, TimeZoneInfo zone, DateTime sinceUtc, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        // 先頭の数バイトで zip か xml かを見分ける（zip は "PK" で始まる）
-        var buffered = new BufferedStream(stream, 1 << 16);
-        var head = new byte[2];
-        int read = await buffered.ReadAsync(head, cancellationToken);
-        var rest = new PrefixedStream(head.AsMemory(0, read), buffered);
-
-        if (read == 2 && head[0] == (byte)'P' && head[1] == (byte)'K')
+        if (!stream.CanSeek)
         {
-            // ZipArchive は読み込み専用でも場所の移動を必要とすることがあるため、一時ファイルに書き出してから開く
+            // zip を開くには読み戻しのできるストリームが必要なので、一時ファイルに受けてから読む
             string temp = Path.GetTempFileName();
             try
             {
-                await using (var file = File.Create(temp))
-                {
-                    await rest.CopyToAsync(file, cancellationToken);
-                }
-                await using var zipFile = File.OpenRead(temp);
-                using var zip = new ZipArchive(zipFile, ZipArchiveMode.Read);
-                var entry = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("export.xml", StringComparison.OrdinalIgnoreCase)
-                                                            && !e.FullName.Contains("cda", StringComparison.OrdinalIgnoreCase))
-                    ?? throw new UserInputException("zip の中に export.xml が見つかりませんでした。ヘルスケアから書き出した「書き出したデータ.zip」を選んでください。");
-                await using var xml = await entry.OpenAsync(cancellationToken);
-                return Read(xml, zone, sinceUtc, progress, cancellationToken);
+                await using var file = new FileStream(temp, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1 << 16, FileOptions.DeleteOnClose);
+                await stream.CopyToAsync(file, cancellationToken);
+                file.Position = 0;
+                return await ReadAsync(file, zone, sinceUtc, progress, cancellationToken);
             }
             finally
             {
-                File.Delete(temp);
+                if (File.Exists(temp)) File.Delete(temp);
             }
         }
 
-        return Read(rest, zone, sinceUtc, progress, cancellationToken);
+        // 先頭の 2 バイトで zip か xml かを見分ける（zip は "PK" で始まる）
+        long origin = stream.Position;
+        var head = new byte[2];
+        int read = await stream.ReadAtLeastAsync(head, 2, throwOnEndOfStream: false, cancellationToken);
+        stream.Position = origin;
+
+        if (read == 2 && head[0] == (byte)'P' && head[1] == (byte)'K')
+        {
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            var entry = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("export.xml", StringComparison.OrdinalIgnoreCase)
+                                                        && !e.FullName.Contains("cda", StringComparison.OrdinalIgnoreCase))
+                ?? throw new UserInputException("zip の中に export.xml が見つかりませんでした。ヘルスケアから書き出した「書き出したデータ.zip」を選んでください。");
+            await using var xml = await entry.OpenAsync(cancellationToken);
+            return Read(xml, zone, sinceUtc, progress, cancellationToken);
+        }
+
+        return Read(stream, zone, sinceUtc, progress, cancellationToken);
     }
 
     /// <summary>export.xml を読む。sinceUtc より前の記録は使わない。</summary>
@@ -98,7 +110,8 @@ public static class AppleHealthExportReader
         var sleepIntervals = new List<(DateTime Start, DateTime End)>();
         long count = 0;
 
-        using var reader = XmlReader.Create(xml, settings);
+        using var limited = new LimitedReadStream(xml, MaxXmlBytes);
+        using var reader = XmlReader.Create(limited, settings);
         while (reader.Read())
         {
             if (reader.NodeType != XmlNodeType.Element || reader.Name != "Record") continue;
@@ -122,7 +135,11 @@ public static class AppleHealthExportReader
             {
                 case HeartRateType:
                     if (double.TryParse(reader.GetAttribute("value"), NumberStyles.Float, CultureInfo.InvariantCulture, out double bpm))
+                    {
+                        if (data.HeartRates.Count >= MaxHeartRateSamples)
+                            throw new UserInputException("心拍の記録が多すぎます。取り込む期間を短くしてください。");
                         data.HeartRates.Add(new HeartRateSample(start, bpm));
+                    }
                     else
                         data.SkippedRecords++;
                     break;
@@ -130,8 +147,11 @@ public static class AppleHealthExportReader
                 case StepCountType:
                     if (double.TryParse(reader.GetAttribute("value"), NumberStyles.Float, CultureInfo.InvariantCulture, out double steps))
                     {
-                        var key = (Time.TimeZones.LocalDate(start, zone), reader.GetAttribute("sourceName") ?? "");
-                        stepsBySource[key] = stepsBySource.GetValueOrDefault(key) + steps;
+                        string source = reader.GetAttribute("sourceName") ?? "";
+                        if (source.Length > 64) source = source[..64];
+                        var key = (Time.TimeZones.LocalDate(start, zone), source);
+                        if (stepsBySource.Count < MaxStepKeys || stepsBySource.ContainsKey(key))
+                            stepsBySource[key] = stepsBySource.GetValueOrDefault(key) + steps;
                     }
                     else
                     {
@@ -210,39 +230,33 @@ public static class AppleHealthExportReader
         return true;
     }
 
-    /// <summary>先に読んでしまった数バイトを、元のストリームの前に付け直して読めるようにする</summary>
-    private sealed class PrefixedStream(ReadOnlyMemory<byte> prefix, Stream inner) : Stream
+    /// <summary>決まった大きさより多く読もうとしたら止める（展開すると巨大になる細工 zip への備え）</summary>
+    private sealed class LimitedReadStream(Stream inner, long limit) : Stream
     {
-        private ReadOnlyMemory<byte> remaining = prefix;
+        private long total;
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override long Position { get => total; set => throw new NotSupportedException(); }
 
-        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+        public override int Read(byte[] buffer, int offset, int count) => Count(inner.Read(buffer, offset, count));
 
-        public override int Read(Span<byte> buffer)
-        {
-            if (remaining.Length > 0)
-            {
-                int n = Math.Min(buffer.Length, remaining.Length);
-                remaining.Span[..n].CopyTo(buffer);
-                remaining = remaining[n..];
-                return n;
-            }
-            return inner.Read(buffer);
-        }
+        public override int Read(Span<byte> buffer) => Count(inner.Read(buffer));
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            if (remaining.Length > 0) return Read(buffer.Span);
-            return await inner.ReadAsync(buffer, cancellationToken);
-        }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            Count(await inner.ReadAsync(buffer, cancellationToken));
 
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
             ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        private int Count(int n)
+        {
+            total += n;
+            if (total > limit) throw new UserInputException("ファイルが大きすぎます。取り込む期間を短くして書き出し直してください。");
+            return n;
+        }
 
         public override void Flush() { }
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

@@ -102,7 +102,7 @@ SQLite で動かせます。見本のアカウントと30日分の見本デー�
 ```bash
 export Database__Provider=Sqlite
 export ConnectionStrings__DefaultConnection="Data Source=pulsemind.db"
-export Demo__Email=demo@example.com Demo__Password='Demo!2026pass'   # 任意: 見本データ
+export Demo__Email=demo@example.com Demo__Password='Demo!2026pass'   # 任意: 見本データ（開発環境でだけ作られる）
 dotnet run --project src/PulseMind.Web
 ```
 
@@ -138,7 +138,7 @@ Content-Type: application/json
 { "samples": [ { "t": "2026-10-01T21:00:05+09:00", "bpm": 72 } ] }
 ```
 
-- 1回 2,000 件まで、本文 512KB まで、1 機器あたり 1 分 60 回まで
+- 1回 2,000 件まで、本文 512KB まで、送信元の IP アドレスごとに 1 分 120 回まで
 - 30〜220 bpm の範囲外、未来（5 分以上先）の時刻は捨てて件数を返す
 - `GET /api/v1/ping` でトークンの確認ができる
 

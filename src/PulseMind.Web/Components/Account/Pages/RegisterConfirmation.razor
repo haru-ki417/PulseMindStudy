@@ -9,6 +9,7 @@
 @inject IEmailSender<ApplicationUser> EmailSender
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IWebHostEnvironment Environment
 
 <PageTitle>登録の確認 - Pulse &amp; Mind Study</PageTitle>
 
@@ -52,6 +53,12 @@
             return;
         }
 
+        // 本番では、登録済みかどうかを外から調べられないよう、誰に対しても同じ案内だけを出す
+        if (!Environment.IsDevelopment())
+        {
+            return;
+        }
+
         var user = await UserManager.FindByEmailAsync(Email);
         if (user is null)
         {
@@ -60,7 +67,7 @@
         }
         else if (EmailSender is IdentityNoOpEmailSender)
         {
-            // 開発用: 本物のメール送信を設定するまでは、確認リンクを画面に表示する（送信設定後はこの分岐を削除する）
+            // 開発用: メール送信を設定していない開発環境でだけ、確認リンクを画面に表示する
             var userId = await UserManager.GetUserIdAsync(user);
             var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));

@@ -138,6 +138,7 @@ else
 
     private async Task Run(Func<Task> action)
     {
+        if (busy) return; // ボタンの連打で同じ操作が二重に走らないように
         busy = true;
         error = null;
         try

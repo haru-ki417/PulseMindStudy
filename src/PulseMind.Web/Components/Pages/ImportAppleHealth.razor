@@ -93,7 +93,7 @@
 
 @code {
     /// <summary>受け付けるファイルの大きさの上限（数年分の書き出しでも収まるように）</summary>
-    private const long MaxFileBytes = 1024L * 1024 * 1024;
+    private const long MaxFileBytes = 500L * 1024 * 1024;
 
     private sealed record ImportResult(int HeartRateSamples, int HeartRateMinutes, int StepDays, int SleepDays, int DaysUpdated, int Skipped);
 
@@ -112,7 +112,7 @@
 
         if (e.File.Size > MaxFileBytes)
         {
-            error = "ファイルが大きすぎます（1GB まで）。期間を短くして書き出し直すか、export.xml だけを選んでください。";
+            error = "ファイルが大きすぎます（500MB まで）。期間を短くして書き出し直すか、export.xml だけを選んでください。";
             return;
         }
 

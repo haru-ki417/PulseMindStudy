@@ -107,6 +107,12 @@ public sealed partial class Uploader(HttpClient http, IOptions<BridgeOptions> op
             LogServerUnreachable(ex.Message);
             return true;
         }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // タイムアウト（サーバーやデータベースが休止から起きる途中など）。続けて、あとで送る
+            LogServerUnreachable("応答がありません");
+            return true;
+        }
     }
 
     internal enum SendOutcome { Sent, Unauthorized, Rejected, Failed }
