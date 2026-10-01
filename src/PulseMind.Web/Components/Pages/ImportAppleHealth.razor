@@ -7,6 +7,7 @@
 @inject DailyRecordService Records
 @inject TimeProvider Time
 @inject ILogger<ImportAppleHealth> Logger
+@inject PulseMind.Core.Privacy.AuditLog Audit
 
 <PageTitle>ヘルスケアから取り込む - Pulse &amp; Mind Study</PageTitle>
 
@@ -166,6 +167,7 @@
                 PulseMind.Core.Health.HeartRateMergeMode.Replace, ct);
             int updated = await Records.ApplyImportedAsync(profile.UserId, data.StepsPerDay, data.SleepHoursPerDay, overwriteSleep, ct);
 
+            await Audit.WriteAsync(profile.UserId, AuditKind.DataImported, $"ヘルスケア（直近{days}日）", cancellationToken: ct);
             result = new ImportResult(heart.Accepted, heart.MinutesWritten, data.StepsPerDay.Count, data.SleepHoursPerDay.Count, updated,
                 data.SkippedRecords + heart.Rejected);
         }

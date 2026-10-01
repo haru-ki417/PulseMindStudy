@@ -1,52 +1,40 @@
 @page "/Account/Manage"
 
-@using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
 @using PulseMind.Core.Data
 
 @inject UserManager<ApplicationUser> UserManager
-@inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
 
 <PageTitle>プロフィール - Pulse &amp; Mind Study</PageTitle>
 
 <h2>プロフィール</h2>
-<p class="muted">ログインに使うメールアドレスと、連絡先の電話番号です。表示名や学習目標は<a href="settings">設定</a>で変更できます。</p>
+<p class="muted">ログインに使うメールアドレスです。ニックネームや学習目標は<a href="settings">設定</a>で変更できます。</p>
 <StatusMessage />
 
-<EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post" class="stack form-narrow">
-    <DataAnnotationsValidator />
+<div class="stack form-narrow">
     <div class="field">
         <label for="email">メールアドレス</label>
         <input type="email" value="@email" id="email" class="input-pm" readonly aria-describedby="email-hint" />
         <span class="hint" id="email-hint">変更するときは「<a href="Account/Manage/Email">メールアドレス</a>」から手続きしてください。</span>
     </div>
     <div class="field">
-        <label for="Input.PhoneNumber">電話番号（任意）</label>
-        <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" type="tel" class="input-pm" autocomplete="tel" placeholder="090-1234-5678" />
-        <ValidationMessage For="() => Input.PhoneNumber" />
+        <span class="field-label">登録日</span>
+        <span>@createdAt</span>
     </div>
-    <div class="row-pm">
-        <button type="submit" class="btn-pm primary"><Icon Name="check" /> 保存</button>
-    </div>
-</EditForm>
+    <p class="faint small" style="margin:0">このサービスでは、氏名・電話番号・住所などはお預かりしていません。</p>
+</div>
 
 @code {
-    private ApplicationUser? user;
     private string? email;
-    private string? phoneNumber;
+    private string? createdAt;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
-    [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = default!;
-
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
-
-        user = await UserManager.GetUserAsync(HttpContext.User);
+        var user = await UserManager.GetUserAsync(HttpContext.User);
         if (user is null)
         {
             RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
@@ -54,37 +42,7 @@
         }
 
         email = await UserManager.GetEmailAsync(user);
-        phoneNumber = await UserManager.GetPhoneNumberAsync(user);
-
-        Input.PhoneNumber ??= phoneNumber;
-    }
-
-    private async Task OnValidSubmitAsync()
-    {
-        if (user is null)
-        {
-            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
-            return;
-        }
-
-        if (Input.PhoneNumber != phoneNumber)
-        {
-            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
-            if (!setPhoneResult.Succeeded)
-            {
-                RedirectManager.RedirectToCurrentPageWithStatus("エラー: 電話番号を保存できませんでした。", HttpContext);
-                return;
-            }
-        }
-
-        await SignInManager.RefreshSignInAsync(user);
-        RedirectManager.RedirectToCurrentPageWithStatus("プロフィールを保存しました。", HttpContext);
-    }
-
-    private sealed class InputModel
-    {
-        [Phone(ErrorMessage = "電話番号の形式が正しくありません。")]
-        [Display(Name = "電話番号")]
-        public string? PhoneNumber { get; set; }
+        createdAt = PulseMind.Core.Time.TimeZones.ToLocal(user.CreatedAtUtc, PulseMind.Core.Time.TimeZones.Resolve(user.TimeZoneId))
+            .ToString("yyyy年M月d日", System.Globalization.CultureInfo.InvariantCulture);
     }
 }

@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject CurrentUser Me
 @inject UserProfileService Profiles
+@inject PulseMind.Core.Privacy.AuditLog Audit
 
 <PageTitle>設定 - Pulse &amp; Mind Study</PageTitle>
 
@@ -19,7 +20,7 @@
     return;
 }
 
-<div class="grid grid-2">
+<div class="grid grid-2" style="align-items:start">
     <section class="card-pm">
         <header><h2 class="card-title-icon"><Icon Name="user" /> プロフィールと目標</h2></header>
         <div class="stack">
@@ -82,6 +83,51 @@
             </li>
         </ul>
     </section>
+
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="shield" /> データとプライバシー</h2></header>
+        <ul class="list">
+            <li>
+                <div class="grow"><div class="title">すべてのデータを書き出す</div><div class="meta">学習・毎日の記録・心拍・機器を、表計算ソフトで開ける CSV（zip）でダウンロードします。</div></div>
+                <form action="Account/Manage/DownloadPersonalData" method="post" data-enhance="false">
+                    <AntiforgeryToken />
+                    <button type="submit" class="btn-pm"><Icon Name="download" /> 書き出す</button>
+                </form>
+            </li>
+            <li>
+                <div class="grow"><div class="title">アカウントを削除</div><div class="meta">すべての記録が完全に削除され、元に戻せません。</div></div>
+                <a class="btn-pm danger" href="Account/Manage/DeletePersonalData">削除</a>
+            </li>
+        </ul>
+        <p class="faint small" style="margin:8px 0 0"><a href="privacy">プライバシーポリシー</a> ・ <a href="terms">利用規約</a></p>
+    </section>
+
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="lock" /> セキュリティの記録</h2></header>
+        @if (events.Count == 0)
+        {
+            <div class="empty" style="padding:16px">記録はまだありません。</div>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var e in events)
+                {
+                    <li>
+                        <span class="tag @(e.Kind is AuditKind.SignInFailed or AuditKind.LockedOut ? "pulse" : "")" style="min-width:7.5em;justify-content:center">@KindLabel(e.Kind)</span>
+                        <div class="grow">
+                            <div class="meta num">@TimeZones.ToLocal(e.AtUtc, profile.Zone).ToString("M/d H:mm", CultureInfo.InvariantCulture) @(e.MaskedIp is null ? "" : $"・ {e.MaskedIp}")</div>
+                            @if (e.Detail is not null)
+                            {
+                                <div class="meta">@e.Detail</div>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+            <p class="faint small" style="margin:8px 0 0">身に覚えのないログインがあれば、すぐにパスワードを変更してください。記録は @(PulseMind.Core.Privacy.AuditLog.RetentionDays) 日で自動的に消えます。</p>
+        }
+    </section>
 </div>
 
 @code {
@@ -124,7 +170,23 @@
         timeZoneId = profile.TimeZoneId;
         goalHours = profile.DailyGoalMinutes / 60;
         goalMinutes = profile.DailyGoalMinutes % 60;
+        events = await Audit.RecentAsync(profile.UserId, 10);
     }
+
+    private IReadOnlyList<AuditEvent> events = [];
+
+    private static string KindLabel(AuditKind kind) => kind switch
+    {
+        AuditKind.SignedIn => "ログイン",
+        AuditKind.SignInFailed => "ログイン失敗",
+        AuditKind.LockedOut => "ロック",
+        AuditKind.PasswordChanged => "パスワード変更",
+        AuditKind.DeviceRegistered => "機器を登録",
+        AuditKind.DeviceRevoked => "機器を無効化",
+        AuditKind.DataExported => "書き出し",
+        AuditKind.DataImported => "取り込み",
+        _ => kind.ToString(),
+    };
 
     private async Task Save()
     {
