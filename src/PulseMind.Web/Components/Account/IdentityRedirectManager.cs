@@ -51,5 +51,5 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
         => RedirectToWithStatus(CurrentPath, message, context);
 
     public void RedirectToInvalidUser(UserManager<ApplicationUser> userManager, HttpContext context)
-        => RedirectToWithStatus("Account/InvalidUser", $"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
+        => RedirectToWithStatus("Account/InvalidUser", "エラー: アカウント情報を読み込めませんでした。お手数ですが、もう一度ログインしてください。", context);
 }

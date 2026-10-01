@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/EnableAuthenticator"
+@page "/Account/Manage/EnableAuthenticator"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Globalization
@@ -12,7 +12,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<EnableAuthenticator> Logger
 
-<PageTitle>Configure authenticator app</PageTitle>
+<PageTitle>認証アプリの設定 - Pulse &amp; Mind Study</PageTitle>
 
 @if (recoveryCodes is not null)
 {
@@ -20,57 +20,50 @@
 }
 else
 {
+    <h2>認証アプリの設定</h2>
     <StatusMessage Message="@message" />
-    <h3>Configure authenticator app</h3>
-    <div>
-        <p>To use an authenticator app go through the following steps:</p>
-        <ol class="list">
-            <li>
-                <p>
-                    Download a two-factor authenticator app like Microsoft Authenticator for
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a> and
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a> or
-                    Google Authenticator for
-                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a> and
-                    <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iOS</a>.
-                </p>
-            </li>
-            <li>
-                <p>Scan the QR Code or enter this key <kbd>@sharedKey</kbd> into your two factor authenticator app. Spaces and casing do not matter.</p>
-                <div class="alert alert-info">Learn how to <a href="https://go.microsoft.com/fwlink/?Linkid=852423">enable QR code generation</a>.</div>
-                <div></div>
-                <div data-url="@authenticatorUri"></div>
-            </li>
-            <li>
-                <p>
-                    Once you have scanned the QR code or input the key above, your two factor authentication app will provide you
-                    with a unique code. Enter the code in the confirmation box below.
-                </p>
-                <div class="row">
-                    <div class="col-xl-6">
-                        <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post">
-                            <DataAnnotationsValidator />
-                            <div class="form-floating mb-3">
-                                <InputText @bind-Value="Input.Code" id="Input.Code" class="form-control" autocomplete="off" placeholder="Enter the code" />
-                                <label for="Input.Code" class="control-label form-label">Verification Code</label>
-                                <ValidationMessage For="() => Input.Code" class="text-danger" />
-                            </div>
-                            <button type="submit" class="w-100 btn btn-lg btn-primary">Verify</button>
-                            <ValidationSummary class="text-danger" role="alert" />
-                        </EditForm>
-                    </div>
+    <p class="muted">次の手順で、認証アプリをこのアカウントに登録してください。</p>
+    <ol class="steps">
+        <li>
+            <h3>認証アプリを入れる</h3>
+            <p class="muted small">
+                スマートフォンに、Microsoft Authenticator（<a href="https://go.microsoft.com/fwlink/?Linkid=825072" target="_blank" rel="noopener">Android</a>・<a href="https://go.microsoft.com/fwlink/?Linkid=825073" target="_blank" rel="noopener">iPhone</a>）や
+                Google Authenticator（<a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=ja" target="_blank" rel="noopener">Android</a>・<a href="https://apps.apple.com/jp/app/google-authenticator/id388497605" target="_blank" rel="noopener">iPhone</a>）などの認証アプリをインストールします。
+            </p>
+        </li>
+        <li>
+            <h3>セットアップキーを入力する</h3>
+            <p class="muted small">現在、QRコードの表示には対応していません。認証アプリで「セットアップキーを入力」（手動で入力）を選び、次のキーを入力してください。スペースや大文字・小文字は区別されません。</p>
+            <div class="setup-key"><kbd class="num">@sharedKey</kbd></div>
+            <p class="faint small">アカウント名: @email ／ 発行者: Pulse &amp; Mind Study ／ 種類: 時間ベース</p>
+        </li>
+        <li>
+            <h3>確認コードを入力する</h3>
+            <p class="muted small">キーを登録すると、認証アプリに6桁のコードが表示されます。そのコードを入力してください。</p>
+            <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post" class="stack form-narrow">
+                <DataAnnotationsValidator />
+                <div class="field">
+                    <label for="Input.Code">確認コード</label>
+                    <InputText @bind-Value="Input.Code" id="Input.Code" class="input-pm num" autocomplete="one-time-code" inputmode="numeric" placeholder="123456" />
+                    <ValidationMessage For="() => Input.Code" />
                 </div>
-            </li>
-        </ol>
-    </div>
+                <div class="row-pm">
+                    <button type="submit" class="btn-pm primary">確認して有効にする</button>
+                </div>
+            </EditForm>
+        </li>
+    </ol>
 }
 
 @code {
+    // 認証アプリに表示される発行者名（URL エンコードして埋め込む）
+    private const string AuthenticatorIssuer = "Pulse & Mind Study";
     private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
 
     private string? message;
     private ApplicationUser? user;
     private string? sharedKey;
+    private string? email;
     private string? authenticatorUri;
     private IEnumerable<string>? recoveryCodes;
 
@@ -110,7 +103,7 @@ else
 
         if (!is2faTokenValid)
         {
-            message = "Error: Verification code is invalid.";
+            message = "エラー: 確認コードが正しくありません。認証アプリに表示されている最新のコードを入力してください。";
             return;
         }
 
@@ -118,7 +111,7 @@ else
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
 
-        message = "Your authenticator app has been verified.";
+        message = "認証アプリを確認しました。2段階認証が有効になりました。";
 
         if (await UserManager.CountRecoveryCodesAsync(user) == 0)
         {
@@ -142,7 +135,7 @@ else
 
         sharedKey = FormatKey(unformattedKey!);
 
-        var email = await UserManager.GetEmailAsync(user);
+        email = await UserManager.GetEmailAsync(user);
         authenticatorUri = GenerateQrCodeUri(email!, unformattedKey!);
     }
 
@@ -168,17 +161,17 @@ else
         return string.Format(
             CultureInfo.InvariantCulture,
             AuthenticatorUriFormat,
-            UrlEncoder.Encode("Microsoft.AspNetCore.Identity.UI"),
+            UrlEncoder.Encode(AuthenticatorIssuer),
             UrlEncoder.Encode(email),
             unformattedKey);
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "{0}を入力してください。")]
+        [StringLength(7, ErrorMessage = "{0}は{2}文字以上{1}文字以下で入力してください。", MinimumLength = 6)]
         [DataType(DataType.Text)]
-        [Display(Name = "Verification Code")]
+        [Display(Name = "確認コード")]
         public string Code { get; set; } = "";
     }
 }

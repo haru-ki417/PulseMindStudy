@@ -1,4 +1,4 @@
-﻿@page "/Account/LoginWith2fa"
+@page "/Account/LoginWith2fa"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
@@ -9,40 +9,33 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<LoginWith2fa> Logger
 
-<PageTitle>Two-factor authentication</PageTitle>
+<PageTitle>2段階認証 - Pulse &amp; Mind Study</PageTitle>
 
-<h1>Two-factor authentication</h1>
-<hr />
-<StatusMessage Message="@message" />
-<p>Your login is protected with an authenticator app. Enter your authenticator code below.</p>
-<div class="row">
-    <div class="col-md-4">
-        <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post">
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>2段階認証</h1>
+        <p class="muted">認証アプリに表示されている6桁のコードを入力してください。</p>
+        <StatusMessage Message="@message" />
+        <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post" class="stack">
             <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
             <input type="hidden" name="RememberMe" value="@RememberMe" />
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.TwoFactorCode" id="Input.TwoFactorCode" class="form-control" autocomplete="off" />
-                <label for="Input.TwoFactorCode" class="form-label">Authenticator code</label>
-                <ValidationMessage For="() => Input.TwoFactorCode" class="text-danger" />
+            <div class="field">
+                <label for="Input.TwoFactorCode">確認コード</label>
+                <InputText @bind-Value="Input.TwoFactorCode" id="Input.TwoFactorCode" class="input-pm num" autocomplete="one-time-code" inputmode="numeric" placeholder="123456" />
+                <ValidationMessage For="() => Input.TwoFactorCode" />
             </div>
-            <div class="checkbox mb-3">
-                <label for="remember-machine" class="form-label">
-                    <InputCheckbox @bind-Value="Input.RememberMachine" />
-                    Remember this machine
-                </label>
+            <div class="form-check">
+                <InputCheckbox @bind-Value="Input.RememberMachine" id="Input.RememberMachine" class="form-check-input" />
+                <label class="form-check-label" for="Input.RememberMachine">このブラウザでは次回からコードを省略する</label>
             </div>
-            <div>
-                <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
-            </div>
+            <button type="submit" class="btn-pm primary block lg">ログイン</button>
         </EditForm>
     </div>
+    <p class="auth-links">
+        認証アプリを使えないときは <a href="Account/LoginWithRecoveryCode?ReturnUrl=@ReturnUrl">回復用コードでログイン</a>
+    </p>
 </div>
-<p>
-    Don't have access to your authenticator device? You can
-    <a href="Account/LoginWithRecoveryCode?ReturnUrl=@ReturnUrl">log in with a recovery code</a>.
-</p>
 
 @code {
     private string? message;
@@ -85,19 +78,19 @@
         else
         {
             Logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", userId);
-            message = "Error: Invalid authenticator code.";
+            message = "エラー: 確認コードが正しくありません。";
         }
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "{0}を入力してください。")]
+        [StringLength(7, ErrorMessage = "{0}は{2}文字以上{1}文字以下で入力してください。", MinimumLength = 6)]
         [DataType(DataType.Text)]
-        [Display(Name = "Authenticator code")]
+        [Display(Name = "確認コード")]
         public string? TwoFactorCode { get; set; }
 
-        [Display(Name = "Remember this machine")]
+        [Display(Name = "このブラウザでは次回からコードを省略する")]
         public bool RememberMachine { get; set; }
     }
 }

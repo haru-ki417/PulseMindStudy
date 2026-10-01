@@ -1,8 +1,13 @@
-﻿@page "/Account/Lockout"
+@page "/Account/Lockout"
 
-<PageTitle>Locked out</PageTitle>
+<PageTitle>一時的にロックされています - Pulse &amp; Mind Study</PageTitle>
 
-<header>
-    <h1 class="text-danger">Locked out</h1>
-    <p class="text-danger" role="alert">This account has been locked out, please try again later.</p>
-</header>
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>一時的にロックされています</h1>
+        <Notice Kind="error" Message="ログインに何度も失敗したため、安全のためにこのアカウントを一時的にロックしました。" />
+        <p class="muted">15分後に再度お試しください。パスワードを忘れた場合は、再設定することもできます。</p>
+        <a class="btn-pm block" href="Account/ForgotPassword">パスワードを再設定する</a>
+    </div>
+    <p class="auth-links"><a href="Account/Login">ログイン画面に戻る</a></p>
+</div>

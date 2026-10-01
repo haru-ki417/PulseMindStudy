@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/PersonalData"
+@page "/Account/Manage/PersonalData"
 
 @using Microsoft.AspNetCore.Identity
 @using PulseMind.Core.Data
@@ -6,26 +6,26 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Personal Data</PageTitle>
+<PageTitle>個人データ - Pulse &amp; Mind Study</PageTitle>
 
+<h2>個人データ</h2>
 <StatusMessage />
-<h3>Personal Data</h3>
+<p class="muted">このアプリに保存されているあなたのデータは、いつでもダウンロードしたり、アカウントごと削除したりできます。</p>
 
-<div class="row">
-    <div class="col-md-6">
-        <p>Your account contains personal data that you have given us. This page allows you to download or delete that data.</p>
-        <p>
-            <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
-        </p>
-        <form action="Account/Manage/DownloadPersonalData" method="post">
-            <AntiforgeryToken />
-            <button class="btn btn-primary" type="submit">Download</button>
-        </form>
-        <p>
-            <a href="Account/Manage/DeletePersonalData" class="btn btn-danger">Delete</a>
-        </p>
-    </div>
-</div>
+<section class="section-pm">
+    <h3>データのダウンロード</h3>
+    <p class="muted small">メールアドレスや電話番号など、アカウントに登録されている情報を JSON 形式のファイルで受け取れます。</p>
+    <form action="Account/Manage/DownloadPersonalData" method="post">
+        <AntiforgeryToken />
+        <button class="btn-pm" type="submit"><Icon Name="download" /> アカウント情報をダウンロード（JSON）</button>
+    </form>
+</section>
+
+<section class="section-pm danger-zone">
+    <h3>アカウントの削除</h3>
+    <p class="muted small">アカウントを削除すると、学習記録・毎日の記録・心拍データ・登録した機器を含むすべてのデータが完全に削除され、元に戻せません。</p>
+    <a href="Account/Manage/DeletePersonalData" class="btn-pm danger"><Icon Name="trash" /> アカウントを削除</a>
+</section>
 
 @code {
     [CascadingParameter]

@@ -1,4 +1,4 @@
-﻿@page "/Account/Manage/GenerateRecoveryCodes"
+@page "/Account/Manage/GenerateRecoveryCodes"
 
 @using Microsoft.AspNetCore.Identity
 @using PulseMind.Core.Data
@@ -7,7 +7,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<GenerateRecoveryCodes> Logger
 
-<PageTitle>Generate two-factor authentication (2FA) recovery codes</PageTitle>
+<PageTitle>回復用コードの再発行 - Pulse &amp; Mind Study</PageTitle>
 
 @if (recoveryCodes is not null)
 {
@@ -15,31 +15,23 @@
 }
 else
 {
-    <h3>Generate two-factor authentication (2FA) recovery codes</h3>
-    <div class="alert alert-warning" role="alert">
-        <p>
-            <span class="glyphicon glyphicon-warning-sign"></span>
-            <strong>Put these codes in a safe place.</strong>
-        </p>
-        <p>
-            If you lose your device and don't have the recovery codes you will lose access to your account.
-        </p>
-        <p>
-            Generating new recovery codes does not change the keys used in authenticator apps. If you wish to change the key
-            used in an authenticator app you should <a href="Account/Manage/ResetAuthenticator">reset your authenticator keys.</a>
-        </p>
-    </div>
-    <div>
-        <form @formname="generate-recovery-codes" @onsubmit="OnSubmitAsync" method="post">
-            <AntiforgeryToken />
-            <button class="btn btn-danger" type="submit">Generate Recovery Codes</button>
-        </form>
-    </div>
+    <h2>回復用コードの再発行</h2>
+    <p class="muted">回復用コードは、認証アプリを使えないときにログインするためのコードです。</p>
+    <Notice Kind="error">
+        <strong>新しいコードを発行すると、これまでの回復用コードはすべて使えなくなります。</strong><br />
+        発行したコードは安全な場所に保管してください。なお、認証アプリのキーは変わりません。キーを変更したい場合は、<a href="Account/Manage/ResetAuthenticator">認証アプリをリセット</a>してください。
+    </Notice>
+    <form @formname="generate-recovery-codes" @onsubmit="OnSubmitAsync" method="post" class="row-pm form-actions">
+        <AntiforgeryToken />
+        <button class="btn-pm danger solid" type="submit">回復用コードを発行する</button>
+        <a class="btn-pm ghost" href="Account/Manage/TwoFactorAuthentication">キャンセル</a>
+    </form>
 }
 
 @code {
     private string? message;
     private ApplicationUser? user;
+    private bool isTwoFactorEnabled;
     private IEnumerable<string>? recoveryCodes;
 
     [CascadingParameter]
@@ -54,10 +46,12 @@ else
             return;
         }
 
-        var isTwoFactorEnabled = await UserManager.GetTwoFactorEnabledAsync(user);
+        isTwoFactorEnabled = await UserManager.GetTwoFactorEnabledAsync(user);
         if (!isTwoFactorEnabled)
         {
-            throw new InvalidOperationException("Cannot generate recovery codes for user because they do not have 2FA enabled.");
+            RedirectManager.RedirectToWithStatus(
+                "Account/Manage/TwoFactorAuthentication", "お知らせ: 回復用コードを発行するには、先に2段階認証を有効にしてください。", HttpContext);
+            return;
         }
     }
 
@@ -69,9 +63,15 @@ else
             return;
         }
 
+        // 2段階認証が無効なら発行しない（OnInitializedAsync で設定画面へ戻している）
+        if (!isTwoFactorEnabled)
+        {
+            return;
+        }
+
         var userId = await UserManager.GetUserIdAsync(user);
         recoveryCodes = await UserManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        message = "You have generated new recovery codes.";
+        message = "新しい回復用コードを発行しました。";
 
         Logger.LogInformation("User with ID '{UserId}' has generated new 2FA recovery codes.", userId);
     }
