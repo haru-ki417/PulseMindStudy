@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PulseMind.Core/PulseMind.Core.csproj" />
+    <Project Path="src/PulseMind.IoTBridge/PulseMind.IoTBridge.csproj" />
+    <Project Path="src/PulseMind.Web/PulseMind.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PulseMind.Tests/PulseMind.Tests.csproj" />
+  </Folder>
+</Solution>

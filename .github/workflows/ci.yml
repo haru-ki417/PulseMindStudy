@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore PulseMind.slnx
+
+      - name: Build
+        run: dotnet build PulseMind.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution PulseMind.slnx --configuration Release --no-build
+
+      # データ設計（エンティティ）を変えたのに、データベースの変更手順（マイグレーション）を作り忘れていないか確かめる
+      - name: Check migrations are up to date
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes -p src/PulseMind.Core -s src/PulseMind.Web --configuration Release --no-build

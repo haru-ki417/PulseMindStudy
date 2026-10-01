@@ -1,0 +1,6 @@
+# このフォルダは ASP.NET Core のテンプレートが生成したログイン画面のコード。
+# テンプレートとの差分を小さく保つため、性能に関する一部の分析ルールだけを対象外にする。
+[*.cs]
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+dotnet_diagnostic.CA1859.severity = none
