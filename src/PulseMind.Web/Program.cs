@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PulseMind.Core;
@@ -39,6 +40,11 @@ builder.Services.AddDbContextFactory<PulseMindDbContext>(options =>
     else options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
 });
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+// Cookie を暗号化する鍵をデータベースに保存する（再起動・複数台構成でもログインが切れないように）
+builder.Services.AddDataProtection()
+    .SetApplicationName("PulseMindStudy")
+    .PersistKeysToDbContext<PulseMindDbContext>();
 
 // ---- ログイン
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
