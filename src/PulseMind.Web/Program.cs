@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PulseMind.Core;
 using PulseMind.Core.Data;
+using System.Threading.RateLimiting;
+using PulseMind.Web.Api;
 using PulseMind.Web.Components;
 using PulseMind.Web.Components.Account;
 using PulseMind.Web.Services;
@@ -59,6 +61,24 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddPulseMindCore();
 builder.Services.AddScoped<CurrentUser>();
 
+// ---- 送信回数の制限（総当たりや大量送信への備え）
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // 機器 API: 送信元（トークンの先頭、なければ IP アドレス）ごとに 1 分 60 回まで
+    options.AddPolicy(DeviceApi.RateLimitPolicy, context =>
+    {
+        string? token = DeviceApi.ReadBearer(context.Request);
+        string key = token is { Length: > 12 } ? "t:" + token[..12] : "ip:" + context.Connection.RemoteIpAddress;
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        });
+    });
+});
+
 builder.Services.AddHealthChecks().AddDbContextCheck<PulseMindDbContext>();
 
 var app = builder.Build();
@@ -85,9 +105,13 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 
 await DemoDataSeeder.SeedAsync(app.Services, app.Configuration);
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// 「ページが見つかりません」などの画面は人向けのページだけに出す（機器向け API は状態コードをそのまま返す）
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -95,6 +119,8 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
+app.MapDeviceApi();
 
 // 死活監視（Azure の正常性チェックが使う）。中身の詳細は返さない
 app.MapHealthChecks("/healthz");

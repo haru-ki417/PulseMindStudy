@@ -1,0 +1,203 @@
+@page "/import/apple-health"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject CurrentUser Me
+@inject PulseMind.Core.Health.HeartRateIngestionService HeartRates
+@inject DailyRecordService Records
+@inject TimeProvider Time
+@inject ILogger<ImportAppleHealth> Logger
+
+<PageTitle>ヘルスケアから取り込む - Pulse &amp; Mind Study</PageTitle>
+
+<div class="page-head">
+    <div>
+        <a class="small" href="devices">← 機器とデータの取り込み</a>
+        <h1 style="margin-top:6px">ヘルスケアから取り込む</h1>
+        <p>iPhone の「ヘルスケア」から書き出した zip を選ぶと、心拍数・歩数・睡眠を取り込みます。</p>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="upload" /> ファイルを選ぶ</h2></header>
+        <div class="stack">
+            <div class="field">
+                <label for="ah-range">取り込む期間</label>
+                <select id="ah-range" class="input-pm" @bind="days" disabled="@running">
+                    <option value="30">直近30日</option>
+                    <option value="90">直近90日</option>
+                    <option value="365">直近1年</option>
+                </select>
+                <span class="hint">期間が長いほど時間がかかります。同じ期間を何度取り込んでも、記録が重複することはありません。</span>
+            </div>
+            <label class="row-pm small" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">
+                <input type="checkbox" @bind="overwriteSleep" disabled="@running" style="margin-top:4px" />
+                <span>手入力した睡眠時間も、ヘルスケアの値で上書きする<br /><span class="faint">オフのときは、睡眠を入力していない日だけに反映します。</span></span>
+            </label>
+            <div class="field">
+                <label for="ah-file">書き出したデータ（.zip または export.xml）</label>
+                <InputFile id="ah-file" class="input-pm" accept=".zip,.xml" OnChange="OnFileSelected" disabled="@running" />
+            </div>
+
+            @if (running)
+            {
+                <div class="notice info">
+                    <Icon Name="info" />
+                    <div>
+                        <strong>@stage</strong>
+                        @if (progressText is not null)
+                        {
+                            <div class="small num">@progressText</div>
+                        }
+                    </div>
+                </div>
+                <button class="btn-pm ghost" @onclick="Cancel">中止</button>
+            }
+            <Notice Kind="error" Message="@error" />
+        </div>
+    </section>
+
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="shield" /> 取り込むもの・取り込まないもの</h2></header>
+        <ul class="small muted" style="padding-left:1.2em;margin:0">
+            <li><strong>心拍数</strong>：1分ごとにまとめて保存します。</li>
+            <li><strong>歩数</strong>：日ごとの合計。iPhone と Apple Watch の両方で数えた歩数は二重に数えないよう、多い方を使います。</li>
+            <li><strong>睡眠</strong>：眠っていた時間の合計（ベッドにいただけの時間は除く）。目が覚めた日の記録になります。</li>
+            <li>体重・病歴・位置情報など、ほかのデータは読み取っても保存しません。</li>
+            <li>アップロードしたファイルは取り込み後すぐに削除し、サーバーには残しません。</li>
+        </ul>
+    </section>
+
+    @if (result is not null)
+    {
+        <section class="card-pm span-2">
+            <header><h2 class="card-title-icon" style="color:var(--pm-success)"><Icon Name="check" /> <span style="color:var(--pm-text)">取り込みが終わりました</span></h2></header>
+            <div class="grid grid-3">
+                <div class="metric"><span class="label"><Icon Name="heart" /> 心拍数</span><span class="value num">@Format.Number(result.HeartRateSamples)<small>件</small></span><span class="sub">@Format.Number(result.HeartRateMinutes) 分ぶんとして保存</span></div>
+                <div class="metric"><span class="label"><Icon Name="steps" /> 歩数</span><span class="value num">@result.StepDays<small>日分</small></span></div>
+                <div class="metric"><span class="label"><Icon Name="moon" /> 睡眠</span><span class="value num">@result.SleepDays<small>日分</small></span><span class="sub">日ごとの記録を @result.DaysUpdated 日更新</span></div>
+            </div>
+            @if (result.Skipped > 0)
+            {
+                <p class="faint small" style="margin:12px 0 0">読み取れなかった記録が @Format.Number(result.Skipped) 件ありました（日付の形式が不正など）。</p>
+            }
+            <div class="row-pm" style="margin-top:14px">
+                <a class="btn-pm primary" href="">ホームで見る</a>
+                <a class="btn-pm" href="daily">毎日の記録を見る</a>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    /// <summary>受け付けるファイルの大きさの上限（数年分の書き出しでも収まるように）</summary>
+    private const long MaxFileBytes = 1024L * 1024 * 1024;
+
+    private sealed record ImportResult(int HeartRateSamples, int HeartRateMinutes, int StepDays, int SleepDays, int DaysUpdated, int Skipped);
+
+    private int days = 90;
+    private bool overwriteSleep;
+    private bool running;
+    private string? stage, progressText, error;
+    private ImportResult? result;
+    private CancellationTokenSource? cancel;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var profile = await Me.GetAsync();
+        error = null;
+        result = null;
+
+        if (e.File.Size > MaxFileBytes)
+        {
+            error = "ファイルが大きすぎます（1GB まで）。期間を短くして書き出し直すか、export.xml だけを選んでください。";
+            return;
+        }
+
+        running = true;
+        cancel = new CancellationTokenSource();
+        var ct = cancel.Token;
+        string temp = Path.GetTempFileName();
+        try
+        {
+            // 1. ブラウザからサーバーの一時ファイルへ受け取る
+            stage = "ファイルを受け取っています…";
+            await using (var input = e.File.OpenReadStream(MaxFileBytes, ct))
+            await using (var file = File.Create(temp))
+            {
+                var buffer = new byte[1 << 16];
+                long total = 0, lastShown = 0;
+                int n;
+                while ((n = await input.ReadAsync(buffer, ct)) > 0)
+                {
+                    await file.WriteAsync(buffer.AsMemory(0, n), ct);
+                    total += n;
+                    if (total - lastShown > 2_000_000)
+                    {
+                        lastShown = total;
+                        progressText = $"{total / 1_048_576.0:0.0} MB / {e.File.Size / 1_048_576.0:0.0} MB";
+                        StateHasChanged();
+                    }
+                }
+            }
+
+            // 2. 読み取る（時間がかかるので画面を止めないよう別のスレッドで）
+            stage = "データを読み取っています…";
+            progressText = null;
+            StateHasChanged();
+            var since = Time.GetUtcNow().UtcDateTime.AddDays(-days);
+            var progress = new Progress<long>(count => _ = InvokeAsync(() =>
+            {
+                progressText = $"{count:N0} 件を確認";
+                StateHasChanged();
+            }));
+            var data = await Task.Run(async () =>
+            {
+                await using var file = File.OpenRead(temp);
+                return await PulseMind.Core.Health.AppleHealthExportReader.ReadAsync(file, profile.Zone, since, progress, ct);
+            }, ct);
+
+            // 3. 保存する
+            stage = "保存しています…";
+            progressText = null;
+            StateHasChanged();
+            var heart = await HeartRates.IngestAsync(profile.UserId, DataSource.AppleHealth, data.HeartRates,
+                PulseMind.Core.Health.HeartRateMergeMode.Replace, ct);
+            int updated = await Records.ApplyImportedAsync(profile.UserId, data.StepsPerDay, data.SleepHoursPerDay, overwriteSleep, ct);
+
+            result = new ImportResult(heart.Accepted, heart.MinutesWritten, data.StepsPerDay.Count, data.SleepHoursPerDay.Count, updated,
+                data.SkippedRecords + heart.Rejected);
+        }
+        catch (OperationCanceledException)
+        {
+            error = "取り込みを中止しました。";
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+        }
+        catch (Exception ex) when (ex is System.Xml.XmlException or InvalidDataException or IOException)
+        {
+            // ファイルの中身は個人の健康データなので、ログには種類だけを残す
+            Logger.LogWarning("ヘルスケアの取り込みに失敗しました: {ErrorType}", ex.GetType().Name);
+            error = "ファイルを読み取れませんでした。ヘルスケアから書き出した zip（または中の export.xml）を選んでください。";
+        }
+        finally
+        {
+            File.Delete(temp);
+            running = false;
+            stage = progressText = null;
+            cancel?.Dispose();
+            cancel = null;
+        }
+    }
+
+    private void Cancel() => cancel?.Cancel();
+
+    public void Dispose()
+    {
+        cancel?.Cancel();
+        cancel?.Dispose();
+    }
+}
