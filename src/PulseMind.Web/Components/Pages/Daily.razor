@@ -21,9 +21,9 @@
 }
 
 <div class="grid grid-2">
-    <section class="card-pm">
+    <section class="card-pm accent-sleep">
         <header>
-            <h2 class="card-title-icon"><Icon Name="calendar" /> @Format.Day(date)</h2>
+            <h2 class="card-title-icon accent-title"><Icon Name="calendar" /> @Format.Day(date)</h2>
             <div class="row-pm" style="gap:4px">
                 <button class="btn-pm icon ghost" aria-label="前の日" @onclick="() => Load(date.AddDays(-1))"><Icon Name="chevron-left" /></button>
                 <button class="btn-pm icon ghost" aria-label="次の日" disabled="@(date >= today)" @onclick="() => Load(date.AddDays(1))"><Icon Name="chevron-right" /></button>
@@ -55,7 +55,7 @@
                 <textarea id="d-note" class="input-pm" maxlength="@DailyRecord.NoteMaxLength" placeholder="例: 模試の前日で少し緊張" @bind="note"></textarea>
             </div>
             <div class="row-pm">
-                <button class="btn-pm primary" @onclick="Save" disabled="@busy"><Icon Name="check" /> 保存</button>
+                <button class="btn-pm primary" @onclick="Save" disabled="@busy">保存</button>
                 @if (savedAt is not null)
                 {
                     <span class="small" style="color:var(--pm-success)">保存しました</span>
@@ -65,9 +65,9 @@
         </div>
     </section>
 
-    <section class="card-pm">
+    <section class="card-pm accent-sleep">
         <header>
-            <h2 class="card-title-icon" style="color:var(--pm-sleep)"><Icon Name="moon" /> <span style="color:var(--pm-text)">睡眠（直近14日間）</span></h2>
+            <h2 class="card-title-icon accent-title"><Icon Name="moon" /> 睡眠（直近14日間）</h2>
             @if (sleepAverage is double avg)
             {
                 <span class="faint small">平均 @avg.ToString("0.0", CultureInfo.InvariantCulture) 時間</span>
@@ -76,8 +76,8 @@
         <BarChart Items="sleepChart" CssClass="sleep" ValueText="@(v => v.ToString("0.#", CultureInfo.InvariantCulture))" AriaLabel="直近14日間の睡眠時間" Height="200" />
     </section>
 
-    <section class="card-pm span-2">
-        <header><h2 class="card-title-icon"><Icon Name="calendar" /> 直近14日間</h2></header>
+    <section class="card-pm span-2 accent-sleep">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="calendar" /> 直近14日間</h2></header>
         @if (recent.Count == 0)
         {
             <div class="empty"><Icon Name="calendar" />まだ記録がありません。</div>

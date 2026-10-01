@@ -1,0 +1,49 @@
+@* 目指す試験の設定（設定画面と初回設定で使う） *@
+<div class="stack">
+    <div class="row-pm" style="gap:8px">
+        @foreach (var (presetName, presetDate) in ExamPresets.All)
+        {
+            <button type="button" class="chip @(Name == presetName && Date == presetDate ? "selected" : "")" @onclick="() => Pick(presetName, presetDate)">
+                @presetName（@Format.Day(presetDate)）
+            </button>
+        }
+        <button type="button" class="chip @(Name is null && Date is null ? "selected" : "")" @onclick="Clear">設定しない</button>
+    </div>
+    <div class="grid grid-2" style="gap:10px">
+        <div class="field">
+            <label for="exam-name">試験の名前</label>
+            <input id="exam-name" class="input-pm" maxlength="40" placeholder="例: 第一志望の二次試験" value="@Name" @onchange="e => NameChanged.InvokeAsync(Empty(e.Value as string))" />
+        </div>
+        <div class="field">
+            <label for="exam-date">試験の日</label>
+            <input id="exam-date" class="input-pm" type="date" value="@(Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))" @onchange="OnDate" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Name { get; set; }
+
+    [Parameter] public EventCallback<string?> NameChanged { get; set; }
+
+    [Parameter] public DateOnly? Date { get; set; }
+
+    [Parameter] public EventCallback<DateOnly?> DateChanged { get; set; }
+
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    private async Task Pick(string name, DateOnly date)
+    {
+        await NameChanged.InvokeAsync(name);
+        await DateChanged.InvokeAsync(date);
+    }
+
+    private async Task Clear()
+    {
+        await NameChanged.InvokeAsync(null);
+        await DateChanged.InvokeAsync(null);
+    }
+
+    private Task OnDate(ChangeEventArgs e) =>
+        DateChanged.InvokeAsync(DateOnly.TryParseExact(e.Value as string, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null);
+}

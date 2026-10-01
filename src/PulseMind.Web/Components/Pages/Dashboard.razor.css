@@ -1,0 +1,35 @@
+/* 「今日」の大きな数字。ここがページでいちばん大きな文字になる */
+.today-figure { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin: -2px 0 18px; }
+.today-figure .big-figure { font-size: 3.5rem; color: var(--pm-text); }
+.today-figure .big-figure small { font-family: var(--pm-font); font-size: 1.125rem; font-weight: 600; color: var(--pm-text-3); margin: 0 6px 0 3px; letter-spacing: 0; }
+.today-goal { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px; }
+.capsule { width: 100%; height: 8px; border-radius: 999px; background: var(--pm-fill); overflow: hidden; }
+.capsule span { display: block; height: 100%; border-radius: 999px; background: var(--pm-primary); transition: width .9s var(--pm-ease); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: .8125rem; font-weight: 500; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.line-key { display: inline-block; width: 14px; height: 2px; border-radius: 2px; background: var(--pm-pulse); }
+
+/* 試験までの日数（見出しの横） */
+.exam-pill {
+    display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 16px; border-radius: 999px;
+    background: var(--pm-surface); box-shadow: var(--pm-shadow); color: var(--pm-text-2); font-size: .8125rem; font-weight: 600;
+}
+.exam-pill:hover { color: var(--pm-text); }
+.exam-pill strong { font-size: 1.375rem; color: var(--pm-text); letter-spacing: -.02em; }
+
+.onboard-banner {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px; margin-bottom: 18px; border-radius: 18px;
+    background: var(--pm-primary); color: var(--pm-on-primary); font-size: .875rem;
+}
+.onboard-banner:hover { color: var(--pm-on-primary); opacity: .94; }
+.onboard-banner > span { flex: 1; }
+.onboard-banner ::deep svg { width: 22px; height: 22px; flex: none; }
+
+.saved-mark { display: inline-flex; align-items: center; gap: 4px; color: var(--pm-success); font-weight: 600; }
+.saved-mark ::deep svg { width: 16px; height: 16px; }
+
+@media (max-width: 900px) {
+    .today-figure .big-figure { font-size: 2.75rem; }
+    .today-goal { align-items: stretch; width: 100%; }
+}

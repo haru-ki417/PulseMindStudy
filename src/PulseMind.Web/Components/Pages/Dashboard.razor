@@ -1,4 +1,4 @@
-@* ホーム画面（ログイン後）。今日の学習・タイマー・1週間のグラフ・体調・心拍をまとめて見せる *@
+@* ホーム画面（ログイン後）。主役は「今日」の大きな数字と 1日のリズム。ほかは大きさに強弱をつけたウィジェットで並べる *@
 @inject CurrentUser Me
 @inject StudySessionService Sessions
 @inject DailyRecordService Records
@@ -13,58 +13,116 @@
 
 <div class="page-head">
     <div>
+        <span class="page-date">@Format.Day(today)</span>
         <h1>@Format.Greeting(nowLocal)、@(profile.Name)さん</h1>
-        <p>@Format.Day(today)</p>
     </div>
-    @if (streak > 0)
+    @if (countdown is not null)
     {
-        <span class="tag" style="font-size:.85rem;padding:4px 12px"><Icon Name="flame" Class="" /> @streak 日連続で学習中</span>
+        <a class="exam-pill" href="settings#exam">
+            <span>@countdown.ExamName まで</span>
+            <strong class="num">@countdown.DaysLeft</strong><span>日</span>
+        </a>
     }
 </div>
 
-<div class="grid grid-dash">
-    <section class="card-pm">
-        <header><h2 class="card-title-icon"><Icon Name="timer" /> 学習タイマー</h2></header>
-        <StudyTimer Profile="profile" OnChanged="ReloadStudy" />
+@if (!profile.OnboardingCompleted)
+{
+    <a class="onboard-banner" href="welcome">
+        <Icon Name="target" />
+        <span><strong>はじめての設定</strong>　ニックネーム・1日の目標・目指す試験を決めましょう（1分ほど）</span>
+        <Icon Name="chevron-right" />
+    </a>
+}
+
+<div class="grid grid-12">
+    <section class="card-pm w-8 accent-study hero-today">
+        <header>
+            <h2 class="card-title-icon accent-title"><Icon Name="study" /> 今日</h2>
+            <a href="study">記録を見る</a>
+        </header>
+        <div class="today-figure">
+            <span class="big-figure">
+                @if (Hours(todayMinutes) > 0)
+                {
+                    @Hours(todayMinutes)<small>時間</small>@MinutesPart(todayMinutes)<small>分</small>
+                }
+                else
+                {
+                    @((int)Math.Round(todayMinutes))<small>分</small>
+                }
+            </span>
+            <div class="today-goal">
+                <div class="capsule" role="img" aria-label="@($"目標 {Format.Minutes(profile.DailyGoalMinutes)} の {GoalPercent}%")">
+                    <span style="width:@Math.Min(100, GoalPercent)%"></span>
+                </div>
+                <span class="small muted">目標 @Format.Minutes(profile.DailyGoalMinutes) の <strong class="num">@GoalPercent%</strong></span>
+            </div>
+        </div>
+        <DayRhythm Day="today" Blocks="blocks" Heart="heartPoints" NowLocal="nowLocal" AriaLabel="今日の学習と心拍" />
+        @if (subjectsToday.Count > 0)
+        {
+            <div class="legend">
+                @foreach (var (subject, minutes) in subjectsToday)
+                {
+                    <span><i class="dot" style="--c:@SubjectColors.For(subject)"></i>@SubjectColors.Label(subject) <span class="faint num">@Format.Minutes(minutes)</span></span>
+                }
+                @if (heartPoints.Count > 0)
+                {
+                    <span><i class="line-key"></i>心拍</span>
+                }
+            </div>
+        }
     </section>
 
-    <section class="card-pm">
-        <header>
-            <h2 class="card-title-icon"><Icon Name="target" /> 今日の学習</h2>
-            <a class="small" href="study">記録を見る</a>
-        </header>
-        <div class="row-pm" style="gap:22px;flex-wrap:nowrap">
-            <ProgressRing Value="todayMinutes" Max="profile.DailyGoalMinutes" AriaLabel="@($"目標 {Format.Minutes(profile.DailyGoalMinutes)} のうち {Format.Minutes(todayMinutes)}")">
-                <strong class="num">@GoalPercent%</strong>
-                <span>目標達成</span>
-            </ProgressRing>
-            <div class="stack" style="gap:14px;min-width:0">
-                <div class="metric">
-                    <span class="label">今日</span>
-                    <span class="value">@Format.Minutes(todayMinutes)</span>
-                    <span class="sub">目標 @Format.Minutes(profile.DailyGoalMinutes)</span>
-                </div>
-                <div class="metric">
-                    <span class="label">直近7日の平均</span>
-                    <span class="value" style="font-size:1.15rem">@Format.Minutes(weekAverage)</span>
-                </div>
+    <section class="card-pm w-4 accent-study">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="timer" /> タイマー</h2></header>
+        <StudyTimer Profile="profile" OnChanged="ReloadStudy" />
+        <a class="btn-pm tinted block" style="margin-top:10px" href="focus"><Icon Name="target" /> 集中モードで開く</a>
+    </section>
+
+    <section class="card-pm w-3 accent-mood">
+        @if (countdown is not null)
+        {
+            <header><h2 class="card-title-icon accent-title"><Icon Name="calendar" /> @countdown.ExamName</h2></header>
+            <div class="metric">
+                <span class="value">あと @countdown.DaysLeft<small>日</small></span>
+                <span class="sub">@Format.Day(countdown.ExamDate)</span>
             </div>
+            @if (countdown.ProjectedHours is double hours)
+            {
+                <p class="small muted" style="margin:10px 0 0">今のペースなら、試験までにあと約 <strong class="num">@Math.Round(hours)</strong> 時間</p>
+            }
+        }
+        else
+        {
+            <header><h2 class="card-title-icon accent-title"><Icon Name="calendar" /> 試験まで</h2></header>
+            <p class="small muted">目指す試験の日を決めると、残りの日数と今のペースでの見込みを表示します。</p>
+            <a class="btn-pm tinted" href="settings#exam">試験を設定</a>
+        }
+    </section>
+
+    <section class="card-pm w-3 accent-pulse">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="flame" /> 連続</h2></header>
+        <div class="metric">
+            <span class="value">@streak<small>日</small></span>
+            <span class="sub">@(streak == 0 ? "今日から始めましょう" : todayMinutes > 0 ? "今日も記録できています" : "今日勉強すると更新されます")</span>
         </div>
     </section>
 
-    <section class="card-pm span-2">
+    <section class="card-pm w-6 accent-study">
         <header>
-            <h2 class="card-title-icon"><Icon Name="chart" /> 直近7日間</h2>
-            <span class="faint small">合計 @Format.Minutes(week.Sum(i => i.Value))</span>
+            <h2 class="card-title-icon accent-title"><Icon Name="chart" /> 直近7日間</h2>
+            <a href="review">振り返りカード</a>
         </header>
+        <p class="small muted" style="margin:-6px 0 4px">合計 <strong class="num">@Format.Minutes(week.Sum(i => i.Value))</strong>・1日平均 <strong class="num">@Format.Minutes(weekAverage)</strong></p>
         <BarChart Items="week" Goal="profile.DailyGoalMinutes" GoalLabel="@($"目標 {Format.Minutes(profile.DailyGoalMinutes)}")"
-                  ValueText="Format.MinutesShort" AriaLabel="直近7日間の学習時間" />
+                  ValueText="Format.MinutesShort" AriaLabel="直近7日間の学習時間" Height="170" />
     </section>
 
-    <section class="card-pm">
+    <section class="card-pm w-6 accent-sleep">
         <header>
-            <h2 class="card-title-icon"><Icon Name="moon" /> 今日のコンディション</h2>
-            <a class="small" href="daily">詳しく記録</a>
+            <h2 class="card-title-icon accent-title"><Icon Name="moon" /> 今日のコンディション</h2>
+            <a href="daily">詳しく記録</a>
         </header>
         <div class="stack">
             <div class="field">
@@ -79,19 +137,19 @@
                 <ScalePicker Kind="mood" Label="今日の気分" @bind-Value="mood" />
             </div>
             <div class="row-pm">
-                <button class="btn-pm primary" @onclick="SaveCondition" disabled="@savingCondition"><Icon Name="check" /> 保存</button>
+                <button class="btn-pm primary" @onclick="SaveCondition" disabled="@savingCondition">保存</button>
                 @if (conditionSaved)
                 {
-                    <span class="small" style="color:var(--pm-success)">保存しました</span>
+                    <span class="small saved-mark"><Icon Name="check" /> 保存しました</span>
                 }
             </div>
             <Notice Kind="error" Message="@conditionError" />
         </div>
     </section>
 
-    <section class="card-pm">
+    <section class="card-pm w-6 accent-pulse">
         <header>
-            <h2 class="card-title-icon" style="color:var(--pm-pulse)"><Icon Name="heart" Class="@(heartPoints.Count > 0 ? "beat" : null)" /> <span style="color:var(--pm-text)">今日の心拍</span></h2>
+            <h2 class="card-title-icon accent-title"><Icon Name="heart" Class="@(heartPoints.Count > 0 ? "beat" : null)" /> 心拍</h2>
             @if (heartPoints.Count > 0)
             {
                 <span class="faint small">最新 @Format.Time(heartPoints[^1].Local)</span>
@@ -102,16 +160,16 @@
             <div class="empty">
                 <Icon Name="pulse" />
                 今日の心拍の記録はまだありません。<br />
-                Arduino の脈拍センサーや、iPhone の「ヘルスケア」から取り込めます。
+                <a href="devices">センサーやヘルスケアをつなぐ</a>
             </div>
         }
         else
         {
             <div class="row-pm" style="gap:28px;margin-bottom:6px">
-                <div class="metric"><span class="label">最新</span><span class="value num">@Math.Round(heartPoints[^1].Average)<small>bpm</small></span></div>
-                <div class="metric"><span class="label">今日の平均</span><span class="value num" style="font-size:1.15rem">@Math.Round(heartPoints.Average(p => p.Average))<small>bpm</small></span></div>
+                <div class="metric"><span class="label">最新</span><span class="value">@Math.Round(heartPoints[^1].Average)<small>bpm</small></span></div>
+                <div class="metric"><span class="label">今日の平均</span><span class="value" style="font-size:1.375rem">@Math.Round(heartPoints.Average(p => p.Average))<small>bpm</small></span></div>
             </div>
-            <HeartRateChart Points="heartPoints" From="chartFrom" To="chartTo" Height="170" AriaLabel="今日の心拍数" />
+            <HeartRateChart Points="heartPoints" From="chartFrom" To="chartTo" Height="150" AriaLabel="今日の心拍数" />
         }
     </section>
 </div>
@@ -123,6 +181,9 @@
     private double todayMinutes, weekAverage;
     private int streak;
     private IReadOnlyList<BarItem> week = [];
+    private IReadOnlyList<RhythmBlock> blocks = [];
+    private IReadOnlyList<(string Subject, double Minutes)> subjectsToday = [];
+    private Countdown? countdown;
 
     private double? sleepHours;
     private int? mood;
@@ -133,6 +194,10 @@
     private DateTime chartFrom, chartTo;
 
     private int GoalPercent => profile is null || profile.DailyGoalMinutes == 0 ? 0 : (int)Math.Round(todayMinutes * 100 / profile.DailyGoalMinutes);
+
+    private static int Hours(double minutes) => (int)Math.Round(minutes) / 60;
+
+    private static string MinutesPart(double minutes) => ((int)Math.Round(minutes) % 60).ToString("00", CultureInfo.InvariantCulture);
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,7 +216,8 @@
         if (heartPoints.Count > 0)
         {
             // 記録のある時間帯を中心に表示する（1日全体だと線が細くなりすぎるため）
-            chartFrom = new DateTime(heartPoints[0].Local.Year, heartPoints[0].Local.Month, heartPoints[0].Local.Day, heartPoints[0].Local.Hour, 0, 0);
+            var first = heartPoints[0].Local;
+            chartFrom = new DateTime(first.Year, first.Month, first.Day, first.Hour, 0, 0);
             chartTo = new DateTime(nowLocal.Year, nowLocal.Month, nowLocal.Day, nowLocal.Hour, 0, 0).AddHours(1);
             if (chartTo - chartFrom < TimeSpan.FromHours(3)) chartFrom = chartTo.AddHours(-3);
         }
@@ -160,6 +226,7 @@
     private async Task ReloadStudy()
     {
         if (profile is null) return;
+        nowLocal = TimeZones.ToLocal(Time.GetUtcNow().UtcDateTime, profile.Zone);
         var days = await Sessions.DailyMinutesAsync(profile.UserId, today.AddDays(-59), today, profile.Zone);
         todayMinutes = days[today];
         streak = StudyTime.Streak(days, today);
@@ -169,6 +236,16 @@
                 $"{Format.Day(d.Key)} {Format.Minutes(d.Value)}", Highlight: d.Key == today, SubLabel: Format.ShortDay(d.Key)))
             .ToList();
         weekAverage = week.Average(i => i.Value);
+
+        double recentAverage = days.Where(d => d.Key < today && d.Key >= today.AddDays(-14)).Select(d => d.Value).DefaultIfEmpty(0).Average();
+        countdown = Countdown.Create(profile.ExamName, profile.ExamDate, today, recentAverage);
+
+        var (fromUtc, toUtc) = TimeZones.LocalDayRangeUtc(today, profile.Zone);
+        var now = Time.GetUtcNow().UtcDateTime;
+        blocks = (await Sessions.ListAsync(profile.UserId, fromUtc, toUtc))
+            .Select(s => new RhythmBlock(TimeZones.ToLocal(s.StartedAtUtc, profile.Zone), TimeZones.ToLocal(s.EndedAtUtc ?? now, profile.Zone), s.Subject, s.IsRunning))
+            .ToList();
+        subjectsToday = await Sessions.MinutesBySubjectAsync(profile.UserId, fromUtc, toUtc);
     }
 
     private async Task SaveCondition()

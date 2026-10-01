@@ -1,0 +1,137 @@
+@* 週の振り返りカード（1080×1350 の画像になる SVG）。
+   画像として保存するので、色は CSS の変数ではなく値を直接書く *@
+<svg id="@Id" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350" class="review-svg" role="img" aria-label="@AriaLabel"
+     font-family="-apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', 'Noto Sans CJK JP', 'Yu Gothic UI', 'Segoe UI', sans-serif">
+    <defs>
+        <linearGradient id="rc-bg" x1="0" y1="0" x2="0.6" y2="1">
+            <stop offset="0" stop-color="#0d1033" />
+            <stop offset="1" stop-color="#05060f" />
+        </linearGradient>
+        <radialGradient id="rc-glow" cx="0.82" cy="0.18" r="0.6">
+            <stop offset="0" stop-color="@Accent" stop-opacity="0.55" />
+            <stop offset="1" stop-color="@Accent" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="rc-logo" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#4656d6" />
+            <stop offset="1" stop-color="#e5484d" />
+        </linearGradient>
+    </defs>
+
+    <rect width="1080" height="1350" fill="url(#rc-bg)" />
+    <rect width="1080" height="1350" fill="url(#rc-glow)" />
+
+    @* ロゴと週 *@
+    <g transform="translate(84 88)">
+        <rect width="56" height="56" rx="16" fill="url(#rc-logo)" />
+        <path d="M9.6 30.6h8l4-9.8 6.7 17.8 4.7-12.2 2.6 4.2h10.7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="76" y="25" fill="#ffffff" font-size="26" font-weight="700">Pulse &amp; Mind Study</text>
+        <text x="76" y="55" fill="#a9afd6" font-size="22">週の振り返り</text>
+    </g>
+    <text x="84" y="236" fill="#c9cdf0" font-size="34" font-weight="600">@RangeText</text>
+
+    @* 合計（いちばん大きく） *@
+    <text x="80" y="390" fill="#ffffff" font-size="170" font-weight="700" letter-spacing="-6"
+          font-family="ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', -apple-system, 'Segoe UI', sans-serif">@TotalHoursText</text>
+    <text x="@F(96 + TotalHoursText.Sum(c => c == '.' ? 44 : 94))" y="390" fill="#a9afd6" font-size="48" font-weight="600">時間</text>
+    @if (Data.PreviousTotalMinutes is double prev && prev > 0)
+    {
+        <g><text x="86" y="452" fill="@(Delta >= 0 ? "#7ee2c4" : "#ffb38a")" font-size="32" font-weight="600">先週より @(Delta >= 0 ? "+" : "−")@Math.Abs(Delta).ToString("0.0", CultureInfo.InvariantCulture) 時間</text></g>
+    }
+
+    @* 7日間の棒グラフ *@
+    <g transform="translate(84 520)">
+        @if (GoalY is double gy)
+        {
+            <g>
+                <line x1="0" x2="912" y1="@F(gy)" y2="@F(gy)" stroke="#8890c8" stroke-width="2" stroke-dasharray="10 10" opacity="0.6" />
+                <text x="912" y="@F(gy - 12)" fill="#8890c8" font-size="22" text-anchor="end">目標 @Format.Minutes(Data.GoalMinutes)</text>
+            </g>
+        }
+        @for (int i = 0; i < 7; i++)
+        {
+            double minutes = Data.DailyMinutes[i];
+            double h = BarHeight(minutes);
+            double x = i * 132 + 22;
+            <g>
+                <rect x="@F(x)" y="0" width="88" height="300" rx="22" fill="#ffffff" opacity="0.06" />
+                @if (h > 0)
+                {
+                    <rect x="@F(x)" y="@F(300 - h)" width="88" height="@F(h)" rx="22" fill="@(minutes >= Data.GoalMinutes ? Accent : "#7c86ff")" opacity="@(minutes >= Data.GoalMinutes ? "1" : "0.75")" />
+                }
+                <text x="@F(x + 44)" y="350" fill="#c9cdf0" font-size="28" font-weight="600" text-anchor="middle">@Weekdays[i]</text>
+            </g>
+        }
+    </g>
+
+    @* 科目 *@
+    <g transform="translate(84 930)">
+        <text x="0" y="0" fill="#a9afd6" font-size="26" font-weight="600">よく勉強した科目</text>
+        @for (int i = 0; i < Math.Min(3, Data.Subjects.Count); i++)
+        {
+            var (subject, minutes) = Data.Subjects[i];
+            <g transform="translate(0 @(56 + i * 58))">
+                <circle cx="12" cy="-10" r="12" fill="@SubjectColors.For(subject)" />
+                <text x="40" y="0" fill="#ffffff" font-size="34" font-weight="600">@SubjectColors.Label(subject)</text>
+                <text x="912" y="0" fill="#c9cdf0" font-size="32" text-anchor="end">@Format.Minutes(minutes)</text>
+            </g>
+        }
+        @if (Data.Subjects.Count == 0)
+        {
+            <g><text x="0" y="56" fill="#8890c8" font-size="30">この週の記録はまだありません</text></g>
+        }
+    </g>
+
+    @* 下の数字 *@
+    <line x1="84" x2="996" y1="1150" y2="1150" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2" />
+    <g transform="translate(84 1226)">
+        <text x="0" y="0" fill="#a9afd6" font-size="24">学習した日</text>
+        <text x="0" y="52" fill="#ffffff" font-size="44" font-weight="700">@Data.StudyDays<tspan fill="#a9afd6" font-size="28" font-weight="600"> / 7日</tspan></text>
+        <text x="320" y="0" fill="#a9afd6" font-size="24">いちばん長い日</text>
+        <text x="320" y="52" fill="#ffffff" font-size="44" font-weight="700">@Format.Minutes(Data.DailyMinutes.Max())</text>
+        @if (ShowSleep && Data.AverageSleepHours is double sleep)
+        {
+            <g>
+                <text x="660" y="0" fill="#a9afd6" font-size="24">睡眠の平均</text>
+                <text x="660" y="52" fill="#ffffff" font-size="44" font-weight="700">@sleep.ToString("0.0", CultureInfo.InvariantCulture)<tspan fill="#a9afd6" font-size="28" font-weight="600"> 時間</tspan></text>
+            </g>
+        }
+        else
+        {
+            <g>
+                <text x="660" y="0" fill="#a9afd6" font-size="24">連続</text>
+                <text x="660" y="52" fill="#ffffff" font-size="44" font-weight="700">@Data.StreakDays<tspan fill="#a9afd6" font-size="28" font-weight="600"> 日</tspan></text>
+            </g>
+        }
+    </g>
+</svg>
+
+@code {
+    public static readonly string[] Weekdays = ["月", "火", "水", "木", "金", "土", "日"];
+
+    [Parameter] public string Id { get; set; } = "review-card";
+
+    [Parameter, EditorRequired] public WeeklyReview Data { get; set; } = default!;
+
+    /// <summary>睡眠を載せるか（健康に関わる情報なので、既定では載せない）</summary>
+    [Parameter] public bool ShowSleep { get; set; }
+
+    private string Accent => Data.Subjects.Count > 0 ? SubjectColors.For(Data.Subjects[0].Subject) : "#7c86ff";
+
+    private double Total => Data.DailyMinutes.Sum();
+
+    private string TotalHoursText => (Total / 60).ToString(Total >= 600 ? "0" : "0.0", CultureInfo.InvariantCulture);
+
+    private double Delta => Data.PreviousTotalMinutes is double p ? (Total - p) / 60 : 0;
+
+    private double Max => Math.Max(Math.Max(Data.DailyMinutes.Max(), Data.GoalMinutes) * 1.1, 1);
+
+    private double BarHeight(double minutes) => minutes <= 0 ? 0 : Math.Max(14, minutes / Max * 300);
+
+    private double? GoalY => Data.GoalMinutes > 0 ? 300 - Data.GoalMinutes / Max * 300 : null;
+
+    private string RangeText => $"{Data.WeekStart.Month}月{Data.WeekStart.Day}日〜{Data.WeekStart.AddDays(6).Month}月{Data.WeekStart.AddDays(6).Day}日";
+
+    private string AriaLabel => $"{RangeText}の振り返り。合計 {TotalHoursText} 時間";
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

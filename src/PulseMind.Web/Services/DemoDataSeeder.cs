@@ -25,7 +25,8 @@ public static class DemoDataSeeder
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         if (await users.FindByEmailAsync(email) is not null) return;
 
-        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, DisplayName = "はるき", DailyGoalMinutes = 180 };
+        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, DisplayName = "はるき", DailyGoalMinutes = 180, OnboardingCompleted = true,
+            ExamName = "大学入学共通テスト", ExamDate = new DateOnly(2027, 1, 16) };
         var created = await users.CreateAsync(user, password);
         if (!created.Succeeded) throw new InvalidOperationException(string.Join(" ", created.Errors.Select(e => e.Description)));
 
@@ -38,7 +39,7 @@ public static class DemoDataSeeder
         var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PulseMindDbContext>>();
         await using (var context = await db.CreateDbContextAsync())
         {
-            for (int d = 29; d >= 0; d--)
+            for (int d = 119; d >= 0; d--)
             {
                 var date = today.AddDays(-d);
                 double sleep = Math.Round(5.5 + random.NextDouble() * 2.5, 1);

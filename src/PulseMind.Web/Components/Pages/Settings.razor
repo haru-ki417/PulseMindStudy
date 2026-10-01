@@ -4,6 +4,7 @@
 @inject CurrentUser Me
 @inject UserProfileService Profiles
 @inject PulseMind.Core.Privacy.AuditLog Audit
+@inject TimeProvider Time
 
 <PageTitle>設定 - Pulse &amp; Mind Study</PageTitle>
 
@@ -53,11 +54,22 @@
                 <span class="hint">「何日に何分勉強したか」を数えるときの日付の区切りに使います。留学中などで変えるとき以外は「日本」のままで大丈夫です。</span>
             </div>
             <div class="row-pm">
-                <button class="btn-pm primary" @onclick="Save" disabled="@busy"><Icon Name="check" /> 保存</button>
+                <button class="btn-pm primary" @onclick="Save" disabled="@busy">保存</button>
             </div>
             <Notice Kind="error" Message="@error" />
             <Notice Kind="success" Message="@done" />
         </div>
+    </section>
+
+    <section class="card-pm accent-mood" id="exam">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="calendar" /> 目指す試験</h2></header>
+        <p class="muted small">ホームに残りの日数と、今のペースで試験までに何時間勉強できるかの見込みを表示します。</p>
+        <ExamEditor @bind-Name="examName" @bind-Date="examDate" />
+        <div class="row-pm" style="margin-top:14px">
+            <button class="btn-pm primary" @onclick="SaveExam" disabled="@busy">保存</button>
+        </div>
+        <Notice Kind="error" Message="@examError" />
+        <Notice Kind="success" Message="@examDone" />
     </section>
 
     <section class="card-pm">
@@ -171,6 +183,33 @@
         goalHours = profile.DailyGoalMinutes / 60;
         goalMinutes = profile.DailyGoalMinutes % 60;
         events = await Audit.RecentAsync(profile.UserId, 10);
+        examName = profile.ExamName;
+        examDate = profile.ExamDate;
+    }
+
+    private string? examName, examError, examDone;
+    private DateOnly? examDate;
+
+    private async Task SaveExam()
+    {
+        if (profile is null) return;
+        busy = true;
+        examError = examDone = null;
+        try
+        {
+            await Profiles.UpdateExamAsync(profile.UserId, new ExamInput(examName, examDate), TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, profile.Zone));
+            Me.Invalidate();
+            profile = await Me.GetAsync();
+            examDone = examName is null ? "試験の設定を外しました。" : "保存しました。";
+        }
+        catch (UserInputException ex)
+        {
+            examError = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
     }
 
     private IReadOnlyList<AuditEvent> events = [];

@@ -1,0 +1,248 @@
+@page "/focus"
+@attribute [Authorize]
+@layout FocusLayout
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject CurrentUser Me
+@inject StudySessionService Sessions
+@inject PulseMind.Core.Health.HeartRateIngestionService HeartRates
+@inject TimeProvider Time
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>@(running is null ? "集中モード" : $"{Format.Clock(Elapsed)} {SubjectColors.Label(running.Subject)}") - Pulse &amp; Mind Study</PageTitle>
+
+<div class="focus @(running is null ? "idle" : "running") @(bpm is null ? "breathing" : "beating")" style="--beat:@BeatSeconds;--c:@SubjectColors.For(running?.Subject ?? subject)">
+    <header class="focus-bar">
+        <a class="focus-btn" href="" aria-label="集中モードを閉じる"><Icon Name="x" /></a>
+        <span class="focus-today">今日 <strong class="num">@Format.Minutes(todayMinutes + (running is null ? 0 : Elapsed.TotalMinutes))</strong></span>
+        <button class="focus-btn" type="button" aria-label="全画面表示の切り替え" @onclick="ToggleFullscreen"><Icon Name="expand" /></button>
+    </header>
+
+    <div class="orb-stage" aria-hidden="true">
+        <div class="orb-halo"></div>
+        <div class="orb"></div>
+    </div>
+
+    <main class="focus-center">
+        @if (profile is null)
+        {
+            <p class="focus-hint">読み込み中…</p>
+        }
+        else if (running is not null)
+        {
+            <div class="focus-subject"><i class="dot" style="--c:@SubjectColors.For(running.Subject)"></i>@SubjectColors.Label(running.Subject)</div>
+            <div class="focus-time num" aria-live="off">@Format.Clock(Elapsed)</div>
+            <div class="focus-signal">
+                @if (bpm is double b)
+                {
+                    <span><Icon Name="heart" /> <strong class="num">@Math.Round(b)</strong> bpm に合わせて光っています</span>
+                }
+                else
+                {
+                    <span class="breath"><span class="in">吸って</span><span class="out">ゆっくり吐いて</span></span>
+                }
+            </div>
+            <div class="focus-actions">
+                <button class="focus-main" type="button" @onclick="OpenFinish" disabled="@busy">終了して記録</button>
+            </div>
+        }
+        else
+        {
+            <h1 class="focus-title">何を勉強しますか？</h1>
+            <input class="focus-input" maxlength="@StudySession.SubjectMaxLength" placeholder="科目（例: 数学）" aria-label="科目" @bind="subject" @bind:event="oninput" />
+            @if (recentSubjects.Count > 0)
+            {
+                <div class="focus-chips">
+                    @foreach (var s in recentSubjects)
+                    {
+                        <button type="button" class="@(s == subject ? "selected" : "")" @onclick="() => subject = s"><i class="dot" style="--c:@SubjectColors.For(s)"></i>@s</button>
+                    }
+                </div>
+            }
+            <div class="focus-actions">
+                <button class="focus-main" type="button" @onclick="Start" disabled="@busy">始める</button>
+            </div>
+        }
+        @if (error is not null)
+        {
+            <p class="focus-error" role="alert">@error</p>
+        }
+    </main>
+
+    <footer class="focus-keys" aria-hidden="true">
+        <span><kbd>Space</kbd> @(running is null ? "開始" : "終了")</span>
+        <span><kbd>Esc</kbd> 閉じる</span>
+        <span>@(bpm is null ? "センサーが無いときは、呼吸のペース（1分に6回）で光ります" : "心拍センサーの値を15秒ごとに読み込みます")</span>
+    </footer>
+
+    <ConfirmSheet Visible="finishing" Title="おつかれさまでした" ConfirmText="記録する" Busy="busy" OnConfirm="Finish" OnCancel="() => finishing = false">
+        <p class="muted" style="margin:0">@Format.Clock(Elapsed) の学習を記録します。</p>
+        <div class="field">
+            <span class="field-label">集中できましたか？（任意）</span>
+            <ScalePicker Kind="focus" Label="集中度" @bind-Value="focus" />
+        </div>
+        <div class="field">
+            <label for="focus-note">メモ（任意）</label>
+            <textarea id="focus-note" class="input-pm" maxlength="@StudySession.NoteMaxLength" @bind="note"></textarea>
+        </div>
+    </ConfirmSheet>
+</div>
+
+@code {
+    private UserProfile? profile;
+    private StudySession? running;
+    private IReadOnlyList<string> recentSubjects = [];
+    private string subject = "";
+    private int? focus;
+    private string? note, error;
+    private bool busy, finishing;
+    private double todayMinutes;
+    private double? bpm;
+    private Timer? ticker;
+    private int tick;
+    private DotNetObjectReference<Focus>? self;
+
+    private TimeSpan Elapsed => running is null ? TimeSpan.Zero : Time.GetUtcNow().UtcDateTime - running.StartedAtUtc;
+
+    /// <summary>1拍の長さ（秒）。心拍が無いときは使わない</summary>
+    private string BeatSeconds => (60.0 / Math.Clamp(bpm ?? 60, 40, 180)).ToString("0.###", CultureInfo.InvariantCulture) + "s";
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Me.GetAsync();
+        running = await Sessions.GetRunningAsync(profile.UserId);
+        recentSubjects = await Sessions.RecentSubjectsAsync(profile.UserId);
+        if (running is null && recentSubjects.Count > 0) subject = recentSubjects[0];
+        await LoadToday();
+        await LoadHeartRate();
+        ticker = new Timer(_ => _ = InvokeAsync(OnTick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        self = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("pulseMind.focusKeys", self);
+        if (running is not null) await JS.InvokeAsync<bool>("pulseMind.wakeLock", true);
+    }
+
+    private async Task OnTick()
+    {
+        // 15秒ごとに心拍を読み直し、毎秒時計を進める
+        if (++tick % 15 == 0) await LoadHeartRate();
+        if (running is not null || tick % 15 == 0) StateHasChanged();
+    }
+
+    private async Task LoadToday()
+    {
+        if (profile is null) return;
+        var today = TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, profile.Zone);
+        var days = await Sessions.DailyMinutesAsync(profile.UserId, today, today, profile.Zone);
+        // 計測中の分は画面で毎秒足すので、ここでは除いておく
+        todayMinutes = days[today] - (running is null ? 0 : Elapsed.TotalMinutes);
+    }
+
+    /// <summary>直近3分以内の心拍があれば、それに合わせて光らせる</summary>
+    private async Task LoadHeartRate()
+    {
+        if (profile is null) return;
+        var now = Time.GetUtcNow().UtcDateTime;
+        var minutes = await HeartRates.GetMinutesAsync(profile.UserId, now.AddMinutes(-3), now.AddMinutes(1));
+        bpm = minutes.Count == 0 ? null : minutes[^1].AverageBpm;
+    }
+
+    [JSInvokable]
+    public async Task OnSpace()
+    {
+        if (finishing) return;
+        if (running is null) await Start();
+        else OpenFinish();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnEscape()
+    {
+        if (finishing)
+        {
+            finishing = false;
+            StateHasChanged();
+            return;
+        }
+        Nav.NavigateTo("");
+    }
+
+    private async Task Start()
+    {
+        if (profile is null || busy) return;
+        busy = true;
+        error = null;
+        try
+        {
+            running = await Sessions.StartAsync(profile.UserId, subject);
+            await JS.InvokeAsync<bool>("pulseMind.wakeLock", true);
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+            running = await Sessions.GetRunningAsync(profile.UserId);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void OpenFinish()
+    {
+        focus = null;
+        note = null;
+        finishing = true;
+    }
+
+    private async Task Finish()
+    {
+        if (profile is null || busy) return;
+        busy = true;
+        error = null;
+        try
+        {
+            var result = await Sessions.StopAsync(profile.UserId, focus, note);
+            running = null;
+            finishing = false;
+            subject = result.Session.Subject;
+            recentSubjects = await Sessions.RecentSubjectsAsync(profile.UserId);
+            await LoadToday();
+            await JS.InvokeAsync<bool>("pulseMind.wakeLock", false);
+            if (result.WasCapped) error = $"{StudySessionService.MaxSessionLength.TotalHours:0} 時間を超えていたため、{StudySessionService.MaxSessionLength.TotalHours:0} 時間として記録しました。";
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+            running = await Sessions.GetRunningAsync(profile.UserId);
+            finishing = false;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task ToggleFullscreen() => await JS.InvokeVoidAsync("pulseMind.toggleFullscreen");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (ticker is not null) await ticker.DisposeAsync();
+        try
+        {
+            await JS.InvokeVoidAsync("pulseMind.focusKeysOff");
+            await JS.InvokeAsync<bool>("pulseMind.wakeLock", false);
+        }
+        catch (JSDisconnectedException)
+        {
+            // 画面を閉じたあとは何もしなくてよい
+        }
+        self?.Dispose();
+    }
+}

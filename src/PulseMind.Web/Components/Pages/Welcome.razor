@@ -1,0 +1,104 @@
+@page "/welcome"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CurrentUser Me
+@inject UserProfileService Profiles
+@inject TimeProvider Time
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>ようこそ - Pulse &amp; Mind Study</PageTitle>
+
+<div class="welcome">
+    <LogoMark Class="welcome-mark" />
+    <h1>ようこそ</h1>
+    <p class="muted">3つだけ決めましょう。あとから設定でいつでも変えられます。</p>
+
+    @if (profile is not null)
+    {
+        <section class="card-pm welcome-step accent-study">
+            <h2>何と呼べばいいですか？</h2>
+            <input class="input-pm" maxlength="40" placeholder="@profile.Email.Split('@')[0]" aria-label="ニックネーム" @bind="displayName" />
+        </section>
+
+        <section class="card-pm welcome-step accent-study">
+            <h2>1日にどれくらい勉強したいですか？</h2>
+            <div class="goal-picks">
+                @foreach (int hours in new[] { 1, 2, 3, 4, 5, 6 })
+                {
+                    <button type="button" class="@(goalMinutes == hours * 60 ? "selected" : "")" @onclick="() => goalMinutes = hours * 60">
+                        <span class="num">@hours</span><small>時間</small>
+                    </button>
+                }
+            </div>
+            <p class="small faint" style="margin:10px 0 0">ホームの輪とグラフの目標線になります。無理のない量から始めるのがおすすめです。</p>
+        </section>
+
+        <section class="card-pm welcome-step accent-mood">
+            <h2>目指している試験はありますか？</h2>
+            <ExamEditor @bind-Name="examName" @bind-Date="examDate" />
+        </section>
+
+        <Notice Kind="error" Message="@error" />
+        <div class="welcome-actions">
+            <button class="btn-pm primary lg" @onclick="Save" disabled="@busy">はじめる</button>
+            <span class="small faint">タイムゾーン: @ZoneLabel</span>
+        </div>
+    }
+</div>
+
+@code {
+    private UserProfile? profile;
+    private string? displayName, examName, error;
+    private DateOnly? examDate;
+    private int goalMinutes = 180;
+    private string timeZoneId = "Asia/Tokyo";
+    private bool busy;
+
+    private string ZoneLabel => timeZoneId == "Asia/Tokyo" ? "日本" : timeZoneId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Me.GetAsync();
+        displayName = profile.DisplayName;
+        goalMinutes = profile.DailyGoalMinutes;
+        timeZoneId = profile.TimeZoneId;
+        examName = profile.ExamName;
+        examDate = profile.ExamDate;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || profile is null || profile.OnboardingCompleted) return;
+        // はじめての設定では、ブラウザのタイムゾーンを使う（海外から使う人にも日付が正しく区切られるように）
+        string zone = await JS.InvokeAsync<string>("pulseMind.timeZone");
+        if (TimeZones.IsKnown(zone) && zone != timeZoneId)
+        {
+            timeZoneId = zone;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Save()
+    {
+        if (profile is null) return;
+        busy = true;
+        error = null;
+        try
+        {
+            var today = TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, TimeZones.Resolve(timeZoneId));
+            await Profiles.UpdateExamAsync(profile.UserId, new ExamInput(examName, examDate), today);
+            await Profiles.UpdateAsync(profile.UserId, new UserProfileInput(displayName, timeZoneId, goalMinutes));
+            Me.Invalidate();
+            Nav.NavigateTo("");
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

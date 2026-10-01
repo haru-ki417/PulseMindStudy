@@ -1,0 +1,24 @@
+.review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
+.review-preview { display: flex; justify-content: center; }
+.review-preview ::deep .review-svg {
+    width: 100%; max-width: 480px; height: auto; border-radius: 30px;
+    box-shadow: 0 30px 80px rgba(13, 16, 51, .35), 0 2px 6px rgba(0, 0, 0, .2);
+}
+.review-side { position: sticky; top: 24px; }
+
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.week-nav > div { display: flex; flex-direction: column; align-items: center; }
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; margin-bottom: 14px; border-top: 1px solid var(--pm-line); border-bottom: 1px solid var(--pm-line); cursor: pointer; }
+.toggle-row > span { display: flex; flex-direction: column; }
+/* iOS のスイッチの形 */
+.toggle-row input { appearance: none; width: 51px; height: 31px; border-radius: 999px; background: var(--pm-fill-strong); position: relative; cursor: pointer; transition: background .2s; flex: none; margin: 0; }
+.toggle-row input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .2); transition: transform .22s var(--pm-ease); }
+.toggle-row input:checked { background: var(--pm-steps); }
+.toggle-row input:checked::after { transform: translateX(20px); }
+.toggle-row input:disabled { opacity: .4; cursor: not-allowed; }
+
+@media (max-width: 900px) {
+    .review-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .review-side { position: static; }
+}

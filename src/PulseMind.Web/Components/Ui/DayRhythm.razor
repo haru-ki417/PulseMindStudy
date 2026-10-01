@@ -1,0 +1,84 @@
+@* 1日のリズム: 0時〜24時の帯に、勉強した時間（科目の色）と心拍の線を重ねる。このアプリの顔になる表示 *@
+<div class="rhythm" role="img" aria-label="@AriaLabel">
+    <div class="rhythm-track">
+        <div class="night" style="left:0;width:@F(Pct(6 * 60))%"></div>
+        <div class="night" style="left:@F(Pct(22 * 60))%;right:0"></div>
+        @foreach (int h in new[] { 3, 6, 9, 12, 15, 18, 21 })
+        {
+            <div class="hour" style="left:@F(Pct(h * 60))%"></div>
+        }
+
+        @if (Heart.Count > 1)
+        {
+            <svg class="pulse-line" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
+                @foreach (var segment in Segments())
+                {
+                    <path d="@segment" vector-effect="non-scaling-stroke" />
+                }
+            </svg>
+        }
+
+        <div class="lane">
+            @foreach (var b in Blocks)
+            {
+                double left = Pct(Minutes(b.StartLocal)), right = Pct(Minutes(b.EndLocal));
+                <div class="block @(b.Running ? "running" : "")" title="@($"{SubjectColors.Label(b.Subject)} {b.StartLocal:H:mm}〜{(b.Running ? "計測中" : b.EndLocal.ToString("H:mm", CultureInfo.InvariantCulture))}")"
+                     style="left:@F(left)%;width:max(4px, @F(right - left)%);--c:@SubjectColors.For(b.Subject)"></div>
+            }
+        </div>
+
+        @if (NowLocal is DateTime now && DateOnly.FromDateTime(now) == Day)
+        {
+            <div class="now" style="left:@F(Pct(Minutes(now)))%"><span>今</span></div>
+        }
+    </div>
+    <div class="rhythm-hours" aria-hidden="true">
+        @foreach (int h in new[] { 0, 6, 12, 18, 24 })
+        {
+            <span style="left:@F(Pct(h * 60))%">@h</span>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DateOnly Day { get; set; }
+
+    [Parameter] public IReadOnlyList<RhythmBlock> Blocks { get; set; } = [];
+
+    [Parameter] public IReadOnlyList<HeartRatePoint> Heart { get; set; } = [];
+
+    [Parameter] public DateTime? NowLocal { get; set; }
+
+    [Parameter] public string AriaLabel { get; set; } = "1日のリズム";
+
+    private double Minutes(DateTime local)
+    {
+        var start = Day.ToDateTime(TimeOnly.MinValue);
+        return Math.Clamp((local - start).TotalMinutes, 0, 24 * 60);
+    }
+
+    private static double Pct(double minutes) => minutes / (24 * 60) * 100;
+
+    /// <summary>心拍の線。10分以上あいだが空いたところは線を切る（測っていない時間を埋めない）</summary>
+    private IEnumerable<string> Segments()
+    {
+        double lo = Heart.Min(p => p.Average) - 5, hi = Heart.Max(p => p.Average) + 5;
+        if (hi - lo < 30) { double mid = (hi + lo) / 2; lo = mid - 15; hi = mid + 15; }
+        var current = new List<string>();
+        HeartRatePoint? previous = null;
+        foreach (var p in Heart.OrderBy(p => p.Local))
+        {
+            if (previous is not null && (p.Local - previous.Local).TotalMinutes > 10 && current.Count > 0)
+            {
+                if (current.Count > 1) yield return "M" + string.Join("L", current);
+                current = [];
+            }
+            double x = Pct(Minutes(p.Local)) * 10, y = 100 - (p.Average - lo) / (hi - lo) * 100;
+            current.Add($"{F(x)},{F(y)}");
+            previous = p;
+        }
+        if (current.Count > 1) yield return "M" + string.Join("L", current);
+    }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}
