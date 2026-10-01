@@ -27,8 +27,7 @@ public class DeviceServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var issued = await new DeviceService(ctx, db.Time).RegisterAsync(user, "机の Arduino", TestContext.Current.CancellationToken);
+        var issued = await new DeviceService(db.Factory, db.Time).RegisterAsync(user, "机の Arduino", TestContext.Current.CancellationToken);
 
         await using var check = db.NewContext();
         var stored = await check.Devices.SingleAsync(TestContext.Current.CancellationToken);
@@ -42,8 +41,7 @@ public class DeviceServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new DeviceService(ctx, db.Time);
+        var service = new DeviceService(db.Factory, db.Time);
         var issued = await service.RegisterAsync(user, "机の Arduino", TestContext.Current.CancellationToken);
 
         var device = await service.AuthenticateAsync(issued.Token, TestContext.Current.CancellationToken);
@@ -63,8 +61,7 @@ public class DeviceServiceTests
         await using var db = await TestDatabase.CreateAsync();
         string alice = await db.AddUserAsync("alice@example.com");
         string bob = await db.AddUserAsync("bob@example.com");
-        await using var ctx = db.NewContext();
-        var service = new DeviceService(ctx, db.Time);
+        var service = new DeviceService(db.Factory, db.Time);
         var issued = await service.RegisterAsync(alice, "Arduino", TestContext.Current.CancellationToken);
 
         Assert.False(await service.RevokeAsync(bob, issued.Device.Id, TestContext.Current.CancellationToken));
@@ -76,8 +73,7 @@ public class DeviceServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new DeviceService(ctx, db.Time);
+        var service = new DeviceService(db.Factory, db.Time);
 
         for (int i = 0; i < DeviceService.MaxActiveDevicesPerUser; i++)
             await service.RegisterAsync(user, $"機器{i}", TestContext.Current.CancellationToken);

@@ -1,0 +1,62 @@
+@* 紹介ページ（ログインしていない人向け） *@
+<section class="hero">
+    <div>
+        <span class="tag primary" style="margin-bottom:14px">受験生・大学生のための学習記録</span>
+        <h1>勉強と体調を、<br /><em>ひとつのグラフ</em>で。</h1>
+        <p class="lead">
+            学習時間に、睡眠・気分・心拍をいっしょに記録。
+            「よく眠れた日は集中できているか」を、自分のデータで確かめられます。
+        </p>
+        <div class="row-pm">
+            <a class="btn-pm primary lg" href="Account/Register">無料で始める</a>
+            <a class="btn-pm lg" href="Account/Login">ログイン</a>
+        </div>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+        <div class="spread" style="margin-bottom:10px">
+            <strong>この1週間</strong>
+            <span class="tag pulse"><Icon Name="heart" Class="beat" /> 平均 72 bpm</span>
+        </div>
+        <BarChart Items="sample" Goal="180" GoalLabel="目標 3時間" ValueText="Format.MinutesShort" Height="190" />
+        <div class="grid grid-3" style="margin-top:10px;gap:10px">
+            <div class="metric"><span class="label"><Icon Name="study" /> 学習</span><span class="value num">17.6<small>時間</small></span></div>
+            <div class="metric"><span class="label"><Icon Name="moon" /> 睡眠</span><span class="value num">6.8<small>時間</small></span></div>
+            <div class="metric"><span class="label"><Icon Name="flame" /> 連続</span><span class="value num">12<small>日</small></span></div>
+        </div>
+        <p class="faint small" style="margin:10px 0 0">※ 表示は見本です</p>
+    </div>
+</section>
+
+<section class="features">
+    <div class="card-pm feature">
+        <div class="icon-badge primary"><Icon Name="timer" /></div>
+        <h3>ワンタップの学習タイマー</h3>
+        <p class="muted small">科目を選んで始めるだけ。終わったら集中度とメモを残せます。日付をまたいだ勉強も正しく集計します。</p>
+    </div>
+    <div class="card-pm feature">
+        <div class="icon-badge sleep"><Icon Name="moon" /></div>
+        <h3>睡眠・歩数・気分</h3>
+        <p class="muted small">1日1回、数秒で入力。iPhone の「ヘルスケア」から歩数や心拍を取り込むこともできます。</p>
+    </div>
+    <div class="card-pm feature">
+        <div class="icon-badge pulse"><Icon Name="pulse" /></div>
+        <h3>心拍センサーにも対応</h3>
+        <p class="muted small">Arduino の脈拍センサーをつなげば、勉強中の心拍を自動で記録。自作 IoT の入口にもなります。</p>
+    </div>
+</section>
+
+<div class="notice" style="margin-top:22px">
+    <Icon Name="shield" />
+    <div>
+        記録はあなただけが見られます。いつでもすべてのデータを書き出し・削除できます。
+        このアプリは医療機器ではなく、病気の診断や予防を目的としたものではありません。
+    </div>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<BarItem> sample =
+    [
+        new("月", 150, ""), new("火", 200, ""), new("水", 95, ""), new("木", 185, ""),
+        new("金", 130, ""), new("土", 240, ""), new("日", 55, "", Highlight: true),
+    ];
+}

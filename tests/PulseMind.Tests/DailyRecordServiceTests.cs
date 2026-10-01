@@ -13,8 +13,7 @@ public class DailyRecordServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new DailyRecordService(ctx, db.Time);
+        var service = new DailyRecordService(db.Factory, db.Time);
         var day = new DateOnly(2026, 4, 1);
 
         await service.SaveAsync(user, new DailyRecordInput(day, 6.5, 8000, 3, null), Tokyo, TestContext.Current.CancellationToken);

@@ -1,0 +1,186 @@
+@page "/daily"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CurrentUser Me
+@inject DailyRecordService Records
+@inject TimeProvider Time
+
+<PageTitle>毎日の記録 - Pulse &amp; Mind Study</PageTitle>
+
+<div class="page-head">
+    <div>
+        <h1>毎日の記録</h1>
+        <p>睡眠・歩数・気分を1日1回記録します。空欄の項目は記録されません。</p>
+    </div>
+</div>
+
+@if (profile is null)
+{
+    <div class="empty">読み込み中…</div>
+    return;
+}
+
+<div class="grid grid-2">
+    <section class="card-pm">
+        <header>
+            <h2 class="card-title-icon"><Icon Name="calendar" /> @Format.Day(date)</h2>
+            <div class="row-pm" style="gap:4px">
+                <button class="btn-pm icon ghost" aria-label="前の日" @onclick="() => Load(date.AddDays(-1))"><Icon Name="chevron-left" /></button>
+                <button class="btn-pm icon ghost" aria-label="次の日" disabled="@(date >= today)" @onclick="() => Load(date.AddDays(1))"><Icon Name="chevron-right" /></button>
+            </div>
+        </header>
+        <div class="stack">
+            <div class="grid grid-2" style="gap:10px">
+                <div class="field">
+                    <label for="d-sleep"><span style="color:var(--pm-sleep)">●</span> 睡眠（前の晩）</label>
+                    <div class="input-with-unit">
+                        <input id="d-sleep" class="input-pm num" type="number" min="0" max="24" step="0.25" inputmode="decimal" @bind="sleep" />
+                        <span>時間</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="d-steps"><span style="color:var(--pm-steps)">●</span> 歩数</label>
+                    <div class="input-with-unit">
+                        <input id="d-steps" class="input-pm num" type="number" min="0" max="@DailyRecordService.MaxSteps" step="1" inputmode="numeric" @bind="steps" />
+                        <span>歩</span>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <span class="field-label"><span style="color:var(--pm-mood)">●</span> 気分</span>
+                <ScalePicker Kind="mood" Label="気分" @bind-Value="mood" />
+            </div>
+            <div class="field">
+                <label for="d-note">メモ</label>
+                <textarea id="d-note" class="input-pm" maxlength="@DailyRecord.NoteMaxLength" placeholder="例: 模試の前日で少し緊張" @bind="note"></textarea>
+            </div>
+            <div class="row-pm">
+                <button class="btn-pm primary" @onclick="Save" disabled="@busy"><Icon Name="check" /> 保存</button>
+                @if (savedAt is not null)
+                {
+                    <span class="small" style="color:var(--pm-success)">保存しました</span>
+                }
+            </div>
+            <Notice Kind="error" Message="@error" />
+        </div>
+    </section>
+
+    <section class="card-pm">
+        <header>
+            <h2 class="card-title-icon" style="color:var(--pm-sleep)"><Icon Name="moon" /> <span style="color:var(--pm-text)">睡眠（直近14日間）</span></h2>
+            @if (sleepAverage is double avg)
+            {
+                <span class="faint small">平均 @avg.ToString("0.0", CultureInfo.InvariantCulture) 時間</span>
+            }
+        </header>
+        <BarChart Items="sleepChart" CssClass="sleep" ValueText="@(v => v.ToString("0.#", CultureInfo.InvariantCulture))" AriaLabel="直近14日間の睡眠時間" Height="200" />
+    </section>
+
+    <section class="card-pm span-2">
+        <header><h2 class="card-title-icon"><Icon Name="calendar" /> 直近14日間</h2></header>
+        @if (recent.Count == 0)
+        {
+            <div class="empty"><Icon Name="calendar" />まだ記録がありません。</div>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var r in recent)
+                {
+                    <li>
+                        <div class="grow">
+                            <div class="title">@Format.Day(r.Date)</div>
+                            @if (!string.IsNullOrEmpty(r.Note))
+                            {
+                                <div class="meta">@r.Note</div>
+                            }
+                        </div>
+                        <span class="small muted num" title="睡眠">@(r.SleepHours is double h ? $"{h:0.##}h" : "—")</span>
+                        <span class="small muted num" title="歩数" style="min-width:6em;text-align:right">@(r.Steps is int s ? $"{Format.Number(s)}歩" : "—")</span>
+                        <span style="width:24px;color:var(--pm-mood)" title="@(r.Mood is int m ? ScalePicker.MoodLabels[m - 1] : "気分の記録なし")">
+                            @if (r.Mood is int mm)
+                            {
+                                <Icon Name="@($"mood-{mm}")" />
+                            }
+                        </span>
+                        <button class="btn-pm icon ghost" aria-label="@($"{Format.Day(r.Date)}の記録を編集")" @onclick="() => Load(r.Date)"><Icon Name="edit" /></button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    private UserProfile? profile;
+    private DateOnly today, date;
+    private double? sleep;
+    private int? steps, mood;
+    private string? note, error;
+    private DateTime? savedAt;
+    private bool busy;
+    private IReadOnlyList<DailyRecord> recent = [];
+    private IReadOnlyList<BarItem> sleepChart = [];
+    private double? sleepAverage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Me.GetAsync();
+        today = TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, profile.Zone);
+        await LoadRecent();
+        await Load(today);
+    }
+
+    private async Task Load(DateOnly day)
+    {
+        if (profile is null || day > today) return;
+        date = day;
+        error = null;
+        savedAt = null;
+        var record = await Records.GetAsync(profile.UserId, day);
+        sleep = record?.SleepHours;
+        steps = record?.Steps;
+        mood = record?.Mood;
+        note = record?.Note;
+    }
+
+    private async Task LoadRecent()
+    {
+        if (profile is null) return;
+        var from = today.AddDays(-13);
+        var records = await Records.ListAsync(profile.UserId, from, today);
+        recent = records.OrderByDescending(r => r.Date).ToList();
+
+        var byDate = records.ToDictionary(r => r.Date);
+        sleepChart = Enumerable.Range(0, 14).Select(i => from.AddDays(i)).Select(d =>
+        {
+            double? h = byDate.GetValueOrDefault(d)?.SleepHours;
+            return new BarItem(Format.ShortDay(d), h ?? 0, h is null ? $"{Format.Day(d)} 記録なし" : $"{Format.Day(d)} {h:0.##}時間",
+                Highlight: d == today, SubLabel: Format.Weekday(d));
+        }).ToList();
+        var sleeps = records.Where(r => r.SleepHours is not null).Select(r => r.SleepHours!.Value).ToList();
+        sleepAverage = sleeps.Count == 0 ? null : sleeps.Average();
+    }
+
+    private async Task Save()
+    {
+        if (profile is null) return;
+        busy = true;
+        error = null;
+        savedAt = null;
+        try
+        {
+            await Records.SaveAsync(profile.UserId, new DailyRecordInput(date, sleep, steps, mood, note), profile.Zone);
+            savedAt = DateTime.UtcNow;
+            await LoadRecent();
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

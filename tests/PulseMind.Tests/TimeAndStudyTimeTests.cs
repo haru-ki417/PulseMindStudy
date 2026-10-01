@@ -53,3 +53,20 @@ public class TimeAndStudyTimeTests
         Assert.Null(StudyTime.Clip(Utc(2026, 4, 1, 10), Utc(2026, 4, 1, 11), Utc(2026, 4, 1, 12), Utc(2026, 4, 2, 0)));
     }
 }
+
+public class StreakTests
+{
+    private static readonly DateOnly Today = new(2026, 4, 10);
+
+    private static Dictionary<DateOnly, double> Days(params int[] daysAgoWithStudy) =>
+        daysAgoWithStudy.ToDictionary(d => Today.AddDays(-d), _ => 30.0);
+
+    [Fact]
+    public void 今日まで続いていれば今日を含めて数える() => Assert.Equal(3, StudyTime.Streak(Days(0, 1, 2, 4), Today));
+
+    [Fact]
+    public void 今日まだ勉強していなくても昨日まで続いていれば途切れない() => Assert.Equal(2, StudyTime.Streak(Days(1, 2), Today));
+
+    [Fact]
+    public void 昨日も今日も勉強していなければ0() => Assert.Equal(0, StudyTime.Streak(Days(2, 3), Today));
+}

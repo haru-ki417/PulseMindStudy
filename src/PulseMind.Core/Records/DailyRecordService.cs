@@ -9,18 +9,24 @@ namespace PulseMind.Core.Records;
 public sealed record DailyRecordInput(DateOnly Date, double? SleepHours, int? Steps, int? Mood, string? Note);
 
 /// <summary>睡眠・歩数・気分などの日ごとの記録</summary>
-public sealed class DailyRecordService(PulseMindDbContext db, TimeProvider time)
+public sealed class DailyRecordService(IDbContextFactory<PulseMindDbContext> dbFactory, TimeProvider time)
 {
     public const int MaxSteps = 200_000;
 
-    public Task<DailyRecord?> GetAsync(string userId, DateOnly date, CancellationToken cancellationToken = default) =>
-        db.DailyRecords.AsNoTracking().FirstOrDefaultAsync(r => r.UserId == userId && r.Date == date, cancellationToken);
+    public async Task<DailyRecord?> GetAsync(string userId, DateOnly date, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        return await db.DailyRecords.AsNoTracking().FirstOrDefaultAsync(r => r.UserId == userId && r.Date == date, cancellationToken);
+    }
 
-    public async Task<IReadOnlyList<DailyRecord>> ListAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default) =>
-        await db.DailyRecords.AsNoTracking()
+    public async Task<IReadOnlyList<DailyRecord>> ListAsync(string userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        return await db.DailyRecords.AsNoTracking()
             .Where(r => r.UserId == userId && r.Date >= from && r.Date <= to)
             .OrderBy(r => r.Date)
             .ToListAsync(cancellationToken);
+    }
 
     /// <summary>その日の記録を作るか、すでにあれば上書きする</summary>
     public async Task<DailyRecord> SaveAsync(string userId, DailyRecordInput input, TimeZoneInfo zone, CancellationToken cancellationToken = default)
@@ -29,6 +35,7 @@ public sealed class DailyRecordService(PulseMindDbContext db, TimeProvider time)
         var now = time.GetUtcNow().UtcDateTime;
         Validate(input, TimeZones.LocalDate(now, zone));
 
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var record = await db.DailyRecords.FirstOrDefaultAsync(r => r.UserId == userId && r.Date == input.Date, cancellationToken);
         if (record is null)
         {

@@ -1,0 +1,38 @@
+@* 確認の小窓。Visible が true の間だけ表示する *@
+@if (Visible)
+{
+    <div class="sheet-backdrop" @onclick="Cancel">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" @onclick:stopPropagation="true">
+            <h2 id="sheet-title">@Title</h2>
+            <div class="stack">@ChildContent</div>
+            <div class="row-pm" style="justify-content:flex-end;margin-top:18px">
+                <button type="button" class="btn-pm ghost" @onclick="Cancel">@CancelText</button>
+                <button type="button" class="btn-pm @(Danger ? "danger solid" : "primary")" @onclick="Confirm" disabled="@Busy">@ConfirmText</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+
+    [Parameter] public string Title { get; set; } = "";
+
+    [Parameter] public string ConfirmText { get; set; } = "OK";
+
+    [Parameter] public string CancelText { get; set; } = "キャンセル";
+
+    [Parameter] public bool Danger { get; set; }
+
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Task Confirm() => OnConfirm.InvokeAsync();
+
+    private Task Cancel() => OnCancel.InvokeAsync();
+}

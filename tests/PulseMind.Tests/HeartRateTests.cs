@@ -33,8 +33,7 @@ public class HeartRateTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new HeartRateIngestionService(ctx, db.Time);
+        var service = new HeartRateIngestionService(db.Factory, db.Time);
 
         await service.IngestAsync(user, DataSource.Arduino, [new(At(0, 10), 60), new(At(0, 20), 70)], HeartRateMergeMode.Accumulate, TestContext.Current.CancellationToken);
         await service.IngestAsync(user, DataSource.Arduino, [new(At(0, 40), 80)], HeartRateMergeMode.Accumulate, TestContext.Current.CancellationToken);
@@ -50,8 +49,7 @@ public class HeartRateTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new HeartRateIngestionService(ctx, db.Time);
+        var service = new HeartRateIngestionService(db.Factory, db.Time);
         HeartRateSample[] export = [new(At(0, 10), 60), new(At(0, 20), 70), new(At(2, 0), 90)];
 
         await service.IngestAsync(user, DataSource.AppleHealth, export, HeartRateMergeMode.Replace, TestContext.Current.CancellationToken);
@@ -68,8 +66,7 @@ public class HeartRateTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new HeartRateIngestionService(ctx, db.Time);
+        var service = new HeartRateIngestionService(db.Factory, db.Time);
 
         await service.IngestAsync(user, DataSource.Arduino, [new(At(0, 10), 60)], HeartRateMergeMode.Accumulate, TestContext.Current.CancellationToken);
         await service.IngestAsync(user, DataSource.AppleHealth, [new(At(0, 10), 64)], HeartRateMergeMode.Replace, TestContext.Current.CancellationToken);
@@ -82,8 +79,7 @@ public class HeartRateTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new HeartRateIngestionService(ctx, db.Time);
+        var service = new HeartRateIngestionService(db.Factory, db.Time);
         var now = db.Time.GetUtcNow().UtcDateTime;
 
         var result = await service.IngestAsync(user, DataSource.Arduino,

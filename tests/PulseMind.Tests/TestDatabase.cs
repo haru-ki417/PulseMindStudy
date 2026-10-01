@@ -16,7 +16,14 @@ public sealed class TestDatabase : IAsyncDisposable
     /// <summary>テスト内の「現在時刻」。2026-04-01 12:00 UTC（日本時間 21:00）から始まる。</summary>
     public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero));
 
-    private TestDatabase(SqliteConnection connection) => this.connection = connection;
+    private TestDatabase(SqliteConnection connection)
+    {
+        this.connection = connection;
+        Factory = new ContextFactory(this);
+    }
+
+    /// <summary>サービスに渡す DbContext の作り手</summary>
+    public IDbContextFactory<PulseMindDbContext> Factory { get; }
 
     public static async Task<TestDatabase> CreateAsync()
     {
@@ -42,4 +49,9 @@ public sealed class TestDatabase : IAsyncDisposable
     }
 
     public async ValueTask DisposeAsync() => await connection.DisposeAsync();
+
+    private sealed class ContextFactory(TestDatabase owner) : IDbContextFactory<PulseMindDbContext>
+    {
+        public PulseMindDbContext CreateDbContext() => owner.NewContext();
+    }
 }

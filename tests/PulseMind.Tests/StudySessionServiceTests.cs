@@ -13,8 +13,7 @@ public class StudySessionServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
 
         await service.StartAsync(user, "  数学  ", TestContext.Current.CancellationToken);
         db.Time.Advance(TimeSpan.FromMinutes(50));
@@ -32,8 +31,7 @@ public class StudySessionServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
 
         await service.StartAsync(user, "英語", TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<UserInputException>(() => service.StartAsync(user, "数学", TestContext.Current.CancellationToken));
@@ -44,8 +42,7 @@ public class StudySessionServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
 
         await service.StartAsync(user, "物理", TestContext.Current.CancellationToken);
         db.Time.Advance(TimeSpan.FromHours(30));
@@ -60,8 +57,7 @@ public class StudySessionServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
         var now = db.Time.GetUtcNow().UtcDateTime;
 
         await service.AddManualAsync(user, new ManualStudyInput(now.AddHours(-3), now.AddHours(-2), "化学"), TestContext.Current.CancellationToken);
@@ -81,8 +77,7 @@ public class StudySessionServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
         var now = db.Time.GetUtcNow().UtcDateTime;
 
         await Assert.ThrowsAsync<UserInputException>(() =>
@@ -95,8 +90,7 @@ public class StudySessionServiceTests
         await using var db = await TestDatabase.CreateAsync();
         string alice = await db.AddUserAsync("alice@example.com");
         string bob = await db.AddUserAsync("bob@example.com");
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
         var now = db.Time.GetUtcNow().UtcDateTime;
 
         var session = await service.AddManualAsync(alice, new ManualStudyInput(now.AddHours(-2), now.AddHours(-1), "数学"), TestContext.Current.CancellationToken);
@@ -110,8 +104,7 @@ public class StudySessionServiceTests
     {
         await using var db = await TestDatabase.CreateAsync();
         string user = await db.AddUserAsync();
-        await using var ctx = db.NewContext();
-        var service = new StudySessionService(ctx, db.Time);
+        var service = new StudySessionService(db.Factory, db.Time);
         var now = db.Time.GetUtcNow().UtcDateTime; // 日本時間 4/1 21:00
 
         await service.AddManualAsync(user, new ManualStudyInput(now.AddDays(-2), now.AddDays(-2).AddMinutes(90), "数学"), TestContext.Current.CancellationToken);

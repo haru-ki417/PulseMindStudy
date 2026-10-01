@@ -1,0 +1,93 @@
+@* 心拍のグラフ。線は1分ごとの平均、薄い帯はその1分の最小〜最大。
+   図形は SVG を枠いっぱいに引き伸ばし、目盛りの文字は HTML で重ねる（幅が変わっても文字がつぶれない） *@
+<div class="hr-chart" role="img" aria-label="@AriaLabel" style="height:@F(Height)px">
+    <div class="hr-y" aria-hidden="true">
+        @foreach (var tick in yTicks)
+        {
+            <span style="bottom:@F(YPct(tick))%">@tick</span>
+        }
+    </div>
+    <div class="hr-plot">
+        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+            @foreach (var tick in yTicks)
+            {
+                <line class="hr-grid" x1="0" x2="1000" y1="@F(Y(tick))" y2="@F(Y(tick))" vector-effect="non-scaling-stroke" />
+            }
+            @foreach (var segment in segments)
+            {
+                <path class="hr-band" d="@BandPath(segment)" />
+                <path class="hr-line" d="@LinePath(segment)" vector-effect="non-scaling-stroke" />
+            }
+        </svg>
+    </div>
+    <div class="hr-x" aria-hidden="true">
+        @foreach (var tick in xTicks)
+        {
+            <span style="left:@F(XPct(tick))%">@tick.ToString("H:mm", CultureInfo.InvariantCulture)</span>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>この分数より間が空いたら、線をつなげない（測っていない時間を線で埋めない）</summary>
+    private const double GapMinutes = 10;
+
+    [Parameter, EditorRequired] public IReadOnlyList<HeartRatePoint> Points { get; set; } = [];
+
+    [Parameter, EditorRequired] public DateTime From { get; set; }
+
+    [Parameter, EditorRequired] public DateTime To { get; set; }
+
+    [Parameter] public double Height { get; set; } = 200;
+
+    [Parameter] public string AriaLabel { get; set; } = "心拍数のグラフ";
+
+    private double yMin, yMax;
+    private List<int> yTicks = [];
+    private List<DateTime> xTicks = [];
+    private List<List<HeartRatePoint>> segments = [];
+
+    protected override void OnParametersSet()
+    {
+        double lo = Points.Count == 0 ? 60 : Points.Min(p => p.Min);
+        double hi = Points.Count == 0 ? 100 : Points.Max(p => p.Max);
+        yMin = Math.Floor(Math.Min(lo - 5, 50) / 10) * 10;
+        yMax = Math.Ceiling(Math.Max(hi + 5, 100) / 10) * 10;
+        int step = yMax - yMin > 100 ? 40 : 20;
+        yTicks = Enumerable.Range(0, 20).Select(i => (int)yMin + i * step).Where(v => v <= yMax).ToList();
+
+        double hours = (To - From).TotalHours;
+        int every = hours <= 4 ? 1 : hours <= 8 ? 2 : hours <= 14 ? 3 : 6;
+        var first = new DateTime(From.Year, From.Month, From.Day, From.Hour, 0, 0).AddHours(From.Minute > 0 ? 1 : 0);
+        xTicks = [];
+        for (var t = first; t <= To; t = t.AddHours(1))
+            if (t.Hour % every == 0) xTicks.Add(t);
+
+        segments = [];
+        HeartRatePoint? previous = null;
+        foreach (var p in Points.OrderBy(p => p.Local))
+        {
+            if (previous is null || (p.Local - previous.Local).TotalMinutes > GapMinutes) segments.Add([]);
+            segments[^1].Add(p);
+            previous = p;
+        }
+    }
+
+    private double XPct(DateTime t) => Math.Clamp((t - From) / (To - From), 0, 1) * 100;
+
+    private double YPct(double bpm) => Math.Clamp((bpm - yMin) / (yMax - yMin), 0, 1) * 100;
+
+    private double X(DateTime t) => XPct(t) * 10;
+
+    private double Y(double bpm) => 1000 - YPct(bpm) * 10;
+
+    private string LinePath(List<HeartRatePoint> s) => s.Count == 1
+        ? $"M{F(X(s[0].Local) - 2)},{F(Y(s[0].Average))}L{F(X(s[0].Local) + 2)},{F(Y(s[0].Average))}"
+        : "M" + string.Join("L", s.Select(p => $"{F(X(p.Local))},{F(Y(p.Average))}"));
+
+    private string BandPath(List<HeartRatePoint> s) =>
+        "M" + string.Join("L", s.Select(p => $"{F(X(p.Local))},{F(Y(p.Max))}"))
+        + "L" + string.Join("L", s.AsEnumerable().Reverse().Select(p => $"{F(X(p.Local))},{F(Y(p.Min))}")) + "Z";
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

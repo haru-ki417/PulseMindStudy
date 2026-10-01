@@ -25,7 +25,7 @@ public sealed class PulseMindAppFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<DbContextOptions<PulseMindDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<PulseMindDbContext>>();
-            services.AddDbContext<PulseMindDbContext>(o => o.UseSqlite(connection));
+            services.AddDbContextFactory<PulseMindDbContext>(o => o.UseSqlite(connection));
 
             using var provider = services.BuildServiceProvider();
             using var scope = provider.CreateScope();

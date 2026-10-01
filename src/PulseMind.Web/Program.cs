@@ -5,6 +5,7 @@ using PulseMind.Core;
 using PulseMind.Core.Data;
 using PulseMind.Web.Components;
 using PulseMind.Web.Components.Account;
+using PulseMind.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,8 +26,15 @@ builder.Services.AddAuthentication(options =>
 // ---- データベース（開発時は LocalDB、本番は Azure SQL。接続文字列は設定から読む）
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("接続文字列 'DefaultConnection' が設定されていません。");
-builder.Services.AddDbContext<PulseMindDbContext>(options =>
-    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+// SQL Server が無い環境（Mac / Linux での動作確認）では SQLite も使える
+bool useSqlite = string.Equals(builder.Configuration["Database:Provider"], "Sqlite", StringComparison.OrdinalIgnoreCase);
+
+// Blazor の画面は長く接続が続くため、DbContext は処理ごとに作り手（ファクトリー）から作る
+builder.Services.AddDbContextFactory<PulseMindDbContext>(options =>
+{
+    if (useSqlite) options.UseSqlite(connectionString);
+    else options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
+});
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 // ---- ログイン
@@ -48,6 +56,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 // ---- アプリの処理
 builder.Services.AddPulseMindCore();
+builder.Services.AddScoped<CurrentUser>();
 
 builder.Services.AddHealthChecks().AddDbContextCheck<PulseMindDbContext>();
 
@@ -67,8 +76,13 @@ else
 if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 {
     await using var scope = app.Services.CreateAsyncScope();
-    await scope.ServiceProvider.GetRequiredService<PulseMindDbContext>().Database.MigrateAsync();
+    var database = scope.ServiceProvider.GetRequiredService<PulseMindDbContext>().Database;
+    // マイグレーションは SQL Server 用。SQLite のときはモデルから直接テーブルを作る
+    if (useSqlite) await database.EnsureCreatedAsync();
+    else await database.MigrateAsync();
 }
+
+await DemoDataSeeder.SeedAsync(app.Services, app.Configuration);
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();

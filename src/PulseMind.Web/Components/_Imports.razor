@@ -1,5 +1,7 @@
-﻿@using System.Net.Http
+@using System.Globalization
+@using System.Net.Http
 @using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
@@ -7,6 +9,14 @@
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.JSInterop
+@using PulseMind.Core
+@using PulseMind.Core.Domain
+@using PulseMind.Core.Profiles
+@using PulseMind.Core.Records
+@using PulseMind.Core.Study
+@using PulseMind.Core.Time
 @using PulseMind.Web
 @using PulseMind.Web.Components
 @using PulseMind.Web.Components.Layout
+@using PulseMind.Web.Components.Ui
+@using PulseMind.Web.Services

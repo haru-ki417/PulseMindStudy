@@ -1,0 +1,36 @@
+@* 1〜5 の選択（気分・集中度）。もう一度押すと選択を外せる *@
+<div class="scale @(Kind == "focus" ? "focus" : "")" role="group" aria-label="@Label">
+    @for (int i = 1; i <= 5; i++)
+    {
+        int level = i;
+        <button type="button" aria-pressed="@(Value == level ? "true" : "false")" @onclick="() => Select(level)" title="@Labels[level - 1]">
+            @if (Kind == "focus")
+            {
+                <span class="num" style="font-size:1.05rem;font-weight:700">@level</span>
+            }
+            else
+            {
+                <Icon Name="@($"mood-{level}")" />
+            }
+            <span>@Labels[level - 1]</span>
+        </button>
+    }
+</div>
+
+@code {
+    public static readonly string[] MoodLabels = ["とても悪い", "悪い", "ふつう", "良い", "とても良い"];
+    public static readonly string[] FocusLabels = ["できず", "少し", "ふつう", "集中", "没頭"];
+
+    [Parameter] public int? Value { get; set; }
+
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    /// <summary>mood（気分）または focus（集中度）</summary>
+    [Parameter] public string Kind { get; set; } = "mood";
+
+    [Parameter] public string Label { get; set; } = "";
+
+    private string[] Labels => Kind == "focus" ? FocusLabels : MoodLabels;
+
+    private Task Select(int level) => ValueChanged.InvokeAsync(Value == level ? null : level);
+}
