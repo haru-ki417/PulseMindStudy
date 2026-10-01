@@ -155,3 +155,28 @@ public class StudySessionEdgeTests
         await service.AddManualAsync(user, new ManualStudyInput(now.AddHours(-2), now.AddHours(-1), "英語"), TestContext.Current.CancellationToken);
     }
 }
+
+public class StreakServiceTests
+{
+    [Fact]
+    public async Task 一年を超えて続いている連続日数も数えられる()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        string user = await db.AddUserAsync();
+        var zone = PulseMind.Core.Time.TimeZones.Resolve("Asia/Tokyo");
+        var today = PulseMind.Core.Time.TimeZones.LocalDate(db.Time.GetUtcNow().UtcDateTime, zone);
+
+        await using (var ctx = db.NewContext())
+        {
+            for (int i = 1; i <= 400; i++)
+            {
+                var start = PulseMind.Core.Time.TimeZones.StartOfLocalDayUtc(today.AddDays(-i), zone).AddHours(10);
+                ctx.StudySessions.Add(new StudySession { UserId = user, StartedAtUtc = start, EndedAtUtc = start.AddMinutes(30), Subject = "数学", CreatedAtUtc = start });
+            }
+            await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        int streak = await new StudySessionService(db.Factory, db.Time).StreakAsync(user, today, zone, TestContext.Current.CancellationToken);
+        Assert.Equal(400, streak);
+    }
+}

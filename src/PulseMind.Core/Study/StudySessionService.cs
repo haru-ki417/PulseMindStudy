@@ -171,6 +171,23 @@ public sealed class StudySessionService(IDbContextFactory<PulseMindDbContext> db
         return minutes;
     }
 
+    /// <summary>
+    /// endDate（利用者のタイムゾーン）時点で何日続けて勉強しているか。
+    /// 長く続いている人でも正しく数えられるよう、途切れた日が見つかるまで 1 年ずつさかのぼる。
+    /// </summary>
+    public async Task<int> StreakAsync(string userId, DateOnly endDate, TimeZoneInfo zone, CancellationToken cancellationToken = default)
+    {
+        var from = endDate.AddDays(-365);
+        var days = new Dictionary<DateOnly, double>(await DailyMinutesAsync(userId, from, endDate, zone, cancellationToken));
+        while (days.Count < 365 * 10 && days.Where(d => d.Key < endDate).All(d => d.Value >= 1))
+        {
+            var older = await DailyMinutesAsync(userId, from.AddDays(-365), from.AddDays(-1), zone, cancellationToken);
+            foreach (var (day, minutes) in older) days[day] = minutes;
+            from = from.AddDays(-365);
+        }
+        return StudyTime.Streak(days, endDate);
+    }
+
     /// <summary>期間 [fromUtc, toUtc) の、科目ごとの学習時間（分、多い順）。期間をはみ出した部分は数えない。</summary>
     public async Task<IReadOnlyList<(string Subject, double Minutes)>> MinutesBySubjectAsync(
         string userId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)

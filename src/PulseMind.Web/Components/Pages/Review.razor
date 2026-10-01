@@ -94,7 +94,8 @@
         var records = await Records.ListAsync(profile.UserId, monday, sunday);
         var sleeps = records.Where(r => r.SleepHours is not null).Select(r => r.SleepHours!.Value).ToList();
 
-        review = new WeeklyReview(monday, week, previous, subjects, week.Count(m => m >= 1), StudyTime.Streak(days, end),
+        int streak = await Sessions.StreakAsync(profile.UserId, end, profile.Zone);
+        review = new WeeklyReview(monday, week, previous, subjects, week.Count(m => m >= 1), streak,
             sleeps.Count == 0 ? null : sleeps.Average(), profile.DailyGoalMinutes);
         if (review.AverageSleepHours is null) showSleep = false;
     }

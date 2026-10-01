@@ -64,7 +64,7 @@
     <section class="card-pm accent-mood" id="exam">
         <header><h2 class="card-title-icon accent-title"><Icon Name="calendar" /> 目指す試験</h2></header>
         <p class="muted small">ホームに残りの日数と、今のペースで試験までに何時間勉強できるかの見込みを表示します。</p>
-        <ExamEditor @bind-Name="examName" @bind-Date="examDate" />
+        <ExamEditor Today="TodayLocal" @bind-Name="examName" @bind-Date="examDate" />
         <div class="row-pm" style="margin-top:14px">
             <button class="btn-pm primary" @onclick="SaveExam" disabled="@busy">保存</button>
         </div>
@@ -143,6 +143,8 @@
 </div>
 
 @code {
+    private DateOnly TodayLocal => TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, profile?.Zone ?? TimeZones.Resolve(null));
+
     /// <summary>選べるタイムゾーン（IANA 形式）。Windows / Linux のどちらのサーバーでも使える ID だけを並べる。</summary>
     private static readonly (string Id, string Label)[] ZoneOptions =
     [
