@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -5,8 +6,15 @@ using PulseMind.Core.Domain;
 
 namespace PulseMind.Core.Data;
 
-public class PulseMindDbContext(DbContextOptions<PulseMindDbContext> options) : IdentityDbContext<ApplicationUser>(options)
+public class PulseMindDbContext(DbContextOptions<PulseMindDbContext> options)
+    : IdentityDbContext<ApplicationUser>(options), IDataProtectionKeyContext
 {
+    /// <summary>
+    /// ログイン状態の Cookie などを暗号化する鍵。データベースに置くことで、アプリの再起動やサーバーの入れ替えでも
+    /// 全員がログアウトされずに済む（データベース自体も暗号化して保存される）。
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
     public DbSet<StudySession> StudySessions => Set<StudySession>();
 
     public DbSet<DailyRecord> DailyRecords => Set<DailyRecord>();

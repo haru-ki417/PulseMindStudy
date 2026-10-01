@@ -1,0 +1,55 @@
+# Azure App Service へ配置する（手動で実行）
+# 事前準備は docs/deploy.md を参照。GitHub のリポジトリに次の「変数」(Settings → Secrets and variables → Actions → Variables) を登録する。
+#   AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID / AZURE_WEBAPP_NAME
+# パスワードや発行プロファイルは使わず、GitHub と Azure の間の信頼関係（OIDC）で認証する。
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC のトークンを受け取るため
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test --solution PulseMind.slnx --configuration Release
+
+      - name: Publish
+        run: dotnet publish src/PulseMind.Web/PulseMind.Web.csproj --configuration Release --output ./publish
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: ./publish
+
+      - name: Smoke test
+        run: |
+          url="https://$(az webapp show --name '${{ vars.AZURE_WEBAPP_NAME }}' --resource-group "$(az webapp list --query "[?name=='${{ vars.AZURE_WEBAPP_NAME }}'].resourceGroup | [0]" -o tsv)" --query defaultHostName -o tsv)"
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' "$url/healthz" || true)
+            if [ "$status" = "200" ]; then echo "OK: $url"; exit 0; fi
+            sleep 10
+          done
+          echo "health check failed: $url" && exit 1
