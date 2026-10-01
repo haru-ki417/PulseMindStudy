@@ -490,3 +490,20 @@ textarea.input-pm { min-height: 76px; resize: vertical; }
     .auth-wrap { margin-top: 8px; }
     .auth-card { padding: 22px 18px; }
 }
+
+/* 散布図（分析画面） */
+.sc-chart { position: relative; padding: 8px 0 20px 34px; margin-top: 10px; }
+.sc-chart .hr-y { width: 30px; top: 8px; bottom: 20px; }
+.sc-chart .hr-x { left: 34px; bottom: 0; }
+.sc-caption { font-size: .72rem; text-align: right; margin-top: 6px; }
+.sc-dot { stroke: var(--pm-primary); stroke-width: 9; stroke-linecap: round; opacity: .55; }
+
+/* 分析の結論の帯 */
+.verdict { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--pm-surface-2); font-size: .92rem; }
+.verdict svg { width: 20px; height: 20px; flex: none; margin-top: 2px; }
+.verdict.positive { background: var(--pm-steps-soft); }
+.verdict.positive svg { color: var(--pm-steps); }
+.verdict.negative { background: var(--pm-mood-soft); }
+.verdict.negative svg { color: var(--pm-mood); }
+.meter { height: 8px; border-radius: 999px; background: var(--pm-surface-2); overflow: hidden; }
+.meter > span { display: block; height: 100%; border-radius: 999px; background: var(--pm-primary); }
