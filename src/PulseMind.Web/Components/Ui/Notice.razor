@@ -1,0 +1,18 @@
+@if (!string.IsNullOrEmpty(Message) || ChildContent is not null)
+{
+    <div class="notice @Kind" role="@(Kind == "error" ? "alert" : "status")">
+        <Icon Name="@IconName" />
+        <div>@Message @ChildContent</div>
+    </div>
+}
+
+@code {
+    /// <summary>info / success / error / 空（中立）</summary>
+    [Parameter] public string Kind { get; set; } = "";
+
+    [Parameter] public string? Message { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string IconName => Kind switch { "error" => "alert", "success" => "check", _ => "info" };
+}

@@ -1,0 +1,27 @@
+@* 目標に対する進み具合の輪 *@
+<div class="ring" role="img" aria-label="@AriaLabel">
+    <svg viewBox="0 0 120 120">
+        <circle class="track" cx="60" cy="60" r="@Radius" fill="none" stroke-width="11" />
+        <circle class="bar" cx="60" cy="60" r="@Radius" fill="none" stroke-width="11"
+                stroke-dasharray="@Circumference.ToString("0.##", CultureInfo.InvariantCulture)"
+                stroke-dashoffset="@Offset.ToString("0.##", CultureInfo.InvariantCulture)" />
+    </svg>
+    <div class="center">@ChildContent</div>
+</div>
+
+@code {
+    private const double Radius = 52;
+    private static readonly double Circumference = 2 * Math.PI * Radius;
+
+    [Parameter] public double Value { get; set; }
+
+    [Parameter] public double Max { get; set; } = 1;
+
+    [Parameter] public string AriaLabel { get; set; } = "";
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private double Ratio => Max <= 0 ? 0 : Math.Clamp(Value / Max, 0, 1);
+
+    private double Offset => Circumference * (1 - Ratio);
+}

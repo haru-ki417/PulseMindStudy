@@ -1,4 +1,4 @@
-﻿<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
+<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
 
 <dialog id="components-reconnect-modal" data-nosnippet>
     <div class="components-reconnect-container">
@@ -7,25 +7,25 @@
             <div></div>
         </div>
         <p class="components-reconnect-first-attempt-visible">
-            Rejoining the server...
+            サーバーに再接続しています…
         </p>
         <p class="components-reconnect-repeated-attempt-visible">
-            Rejoin failed... trying again in <span id="components-seconds-to-next-attempt"></span> seconds.
+            再接続できませんでした。<span id="components-seconds-to-next-attempt"></span> 秒後にもう一度試します。
         </p>
         <p class="components-reconnect-failed-visible">
-            Failed to rejoin.<br />Please retry or reload the page.
+            再接続できませんでした。<br />もう一度試すか、ページを読み込み直してください。
         </p>
         <button id="components-reconnect-button" class="components-reconnect-failed-visible">
-            Retry
+            再接続
         </button>
         <p class="components-pause-visible">
-            The session has been paused by the server.
+            しばらく操作がなかったため、接続を一時停止しました。
         </p>
         <p class="components-resume-failed-visible">
-            Failed to resume the session.<br />Please retry or reload the page.
+            再開できませんでした。<br />ページを読み込み直してください。
         </p>
         <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
-            Resume
+            再開
         </button>
     </div>
 </dialog>

@@ -1,23 +1,59 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<AuthorizeView>
+    <Authorized>
+        <div class="shell">
+            <aside class="sidebar" aria-label="メインメニュー">
+                <Brand />
+                @foreach (var item in NavItems.All)
+                {
+                    <NavLink class="nav-link-pm" href="@item.Href" Match="@(item.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                        <Icon Name="@item.Icon" /> @item.Label
+                    </NavLink>
+                }
+                <div class="nav-spacer"></div>
+                <div class="nav-user" title="@context.User.Identity?.Name">@context.User.Identity?.Name</div>
+                <form action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="" />
+                    <button type="submit" class="nav-link-pm"><Icon Name="logout" /> ログアウト</button>
+                </form>
+            </aside>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <div class="main">
+                <header class="topbar">
+                    <Brand />
+                    <NavLink class="btn-pm icon ghost" href="settings" aria-label="設定"><Icon Name="settings" /></NavLink>
+                </header>
+                <main class="content" id="main">@Body</main>
+                <AppFooter />
+            </div>
+
+            <nav class="tabbar" aria-label="メインメニュー" style="grid-template-columns:repeat(@NavItems.Tabs.Count, 1fr)">
+                @foreach (var item in NavItems.Tabs)
+                {
+                    <NavLink href="@item.Href" Match="@(item.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                        <Icon Name="@item.Icon" /> @item.ShortLabel
+                    </NavLink>
+                }
+            </nav>
         </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+    </Authorized>
+    <NotAuthorized>
+        <header class="public-header">
+            <Brand />
+            <div class="row-pm">
+                <a class="btn-pm ghost" href="Account/Login">ログイン</a>
+                <a class="btn-pm primary" href="Account/Register">無料で始める</a>
+            </div>
+        </header>
+        <main class="public-main" id="main">@Body</main>
+        <AppFooter />
+    </NotAuthorized>
+</AuthorizeView>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    問題が発生しました。
+    <a href="." class="reload">読み込み直す</a>
+    <span class="dismiss" aria-label="閉じる">×</span>
 </div>

@@ -1,0 +1,80 @@
+@* 棒グラフ。文字は HTML で描くので、画面の幅が変わっても読める大きさのまま *@
+<div class="bars @CssClass @(Items.Count > 7 ? "many" : "")" role="img" aria-label="@AriaLabel" style="height:@F(Height)px">
+    <div class="bars-plot">
+        <div class="bars-area">
+            @foreach (var g in new[] { .25, .5, .75 })
+            {
+                <div class="bars-grid" style="bottom:@F(g * 100)%"></div>
+            }
+            @foreach (var item in Items)
+            {
+                bool reached = Goal is double goal && goal > 0 && item.Value >= goal;
+                <div class="bars-col @(item.Highlight ? "today" : "") @(reached || Goal is null ? "reached" : "")" title="@item.Tooltip">
+                    <div class="bars-bar" style="height:@F(Pct(item.Value))%">
+                        @if (ShowValues && ValueText is not null && item.Value > 0)
+                        {
+                            <span class="bars-value">@ValueText(item.Value)</span>
+                        }
+                    </div>
+                </div>
+            }
+            @if (Goal is double goalValue && goalValue > 0)
+            {
+                <div class="bars-goal" style="bottom:@F(Pct(goalValue))%"><span>@GoalLabel</span></div>
+            }
+        </div>
+    </div>
+    <div class="bars-labels" aria-hidden="true">
+        @for (int i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            <div class="@(item.Highlight ? "today" : "")">
+                @if (ShowLabel(i))
+                {
+                    <span>@item.Label</span>
+                    @if (item.SubLabel is not null)
+                    {
+                        <small>@item.SubLabel</small>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<BarItem> Items { get; set; } = [];
+
+    [Parameter] public double? Goal { get; set; }
+
+    [Parameter] public string? GoalLabel { get; set; }
+
+    [Parameter] public Func<double, string>? ValueText { get; set; }
+
+    [Parameter] public bool ShowValues { get; set; } = true;
+
+    [Parameter] public double Height { get; set; } = 220;
+
+    [Parameter] public string? CssClass { get; set; }
+
+    [Parameter] public string AriaLabel { get; set; } = "";
+
+    private double yMax;
+
+    protected override void OnParametersSet()
+    {
+        double max = Items.Count == 0 ? 0 : Items.Max(i => i.Value);
+        yMax = Math.Max(Math.Max(max, Goal ?? 0) * 1.08, 1);
+    }
+
+    private double Pct(double value) => Math.Clamp(value / yMax, 0, 1) * 100;
+
+    /// <summary>項目が多いときはラベルを間引く（最後の1本は必ず出す）</summary>
+    private bool ShowLabel(int i)
+    {
+        int step = Items.Count <= 14 ? 1 : (int)Math.Ceiling(Items.Count / 10.0);
+        return (Items.Count - 1 - i) % step == 0;
+    }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

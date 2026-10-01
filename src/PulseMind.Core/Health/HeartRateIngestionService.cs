@@ -18,7 +18,7 @@ public enum HeartRateMergeMode
 public sealed record HeartRateIngestResult(int Accepted, int Rejected, int MinutesWritten);
 
 /// <summary>心拍数の測定値を受け取り、1分ごとにまとめて保存する</summary>
-public sealed class HeartRateIngestionService(PulseMindDbContext db, TimeProvider time)
+public sealed class HeartRateIngestionService(IDbContextFactory<PulseMindDbContext> dbFactory, TimeProvider time)
 {
     /// <summary>この日より前の測定値は、時計の設定ミスなどとして捨てる</summary>
     public static readonly DateTime OldestAcceptedUtc = new(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -61,6 +61,7 @@ public sealed class HeartRateIngestionService(PulseMindDbContext db, TimeProvide
     public async Task<IReadOnlyList<HeartRateMinute>> GetMinutesAsync(
         string userId, DateTime fromUtc, DateTime toUtc, DataSource? source = null, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var query = db.HeartRateMinutes.AsNoTracking()
             .Where(m => m.UserId == userId && m.MinuteUtc >= fromUtc && m.MinuteUtc < toUtc);
         if (source is DataSource s) query = query.Where(m => m.Source == s);
@@ -77,19 +78,15 @@ public sealed class HeartRateIngestionService(PulseMindDbContext db, TimeProvide
         catch (DbUpdateException)
         {
             // 同じ1分の記録が別の送信と同時に作られた（重複の制約に当たった）。
-            // 作りかけの変更を捨て、最新の状態を読み直してもう一度だけ試す。
-            db.ChangeTracker.Clear();
+            // 新しい接続で最新の状態を読み直し、もう一度だけ試す。
             await SaveChunkAsync(userId, source, chunk, mode, cancellationToken);
-        }
-        finally
-        {
-            db.ChangeTracker.Clear();
         }
     }
 
     private async Task SaveChunkAsync(
         string userId, DataSource source, HeartRateBucket[] chunk, HeartRateMergeMode mode, CancellationToken cancellationToken)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         DateTime first = chunk[0].MinuteUtc, last = chunk[^1].MinuteUtc;
         var existing = await db.HeartRateMinutes
             .Where(m => m.UserId == userId && m.Source == source && m.MinuteUtc >= first && m.MinuteUtc <= last)

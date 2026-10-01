@@ -1,0 +1,149 @@
+@page "/settings"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CurrentUser Me
+@inject UserProfileService Profiles
+
+<PageTitle>設定 - Pulse &amp; Mind Study</PageTitle>
+
+<div class="page-head">
+    <div>
+        <h1>設定</h1>
+        <p>表示名・目標・タイムゾーンと、アカウントの管理。</p>
+    </div>
+</div>
+
+@if (profile is null)
+{
+    <div class="empty">読み込み中…</div>
+    return;
+}
+
+<div class="grid grid-2">
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="user" /> プロフィールと目標</h2></header>
+        <div class="stack">
+            <div class="field">
+                <label for="s-name">ニックネーム</label>
+                <input id="s-name" class="input-pm" maxlength="40" placeholder="@profile.Email.Split('@')[0]" @bind="displayName" />
+                <span class="hint">ホーム画面のあいさつに使います。</span>
+            </div>
+            <div class="field">
+                <span class="field-label">1日の学習目標</span>
+                <div class="row-pm" style="flex-wrap:nowrap">
+                    <div class="input-with-unit" style="flex:1">
+                        <input class="input-pm num" type="number" min="0" max="16" aria-label="時間" @bind="goalHours" />
+                        <span>時間</span>
+                    </div>
+                    <div class="input-with-unit" style="flex:1">
+                        <input class="input-pm num" type="number" min="0" max="59" step="5" aria-label="分" @bind="goalMinutes" />
+                        <span>分</span>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <label for="s-tz">タイムゾーン</label>
+                <select id="s-tz" class="input-pm" @bind="timeZoneId">
+                    @foreach (var (id, label) in ZoneOptions)
+                    {
+                        <option value="@id">@label</option>
+                    }
+                </select>
+                <span class="hint">「何日に何分勉強したか」を数えるときの日付の区切りに使います。留学中などで変えるとき以外は「日本」のままで大丈夫です。</span>
+            </div>
+            <div class="row-pm">
+                <button class="btn-pm primary" @onclick="Save" disabled="@busy"><Icon Name="check" /> 保存</button>
+            </div>
+            <Notice Kind="error" Message="@error" />
+            <Notice Kind="success" Message="@done" />
+        </div>
+    </section>
+
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="lock" /> アカウント</h2></header>
+        <ul class="list">
+            <li>
+                <div class="grow"><div class="title">メールアドレス</div><div class="meta">@profile.Email</div></div>
+                <a class="btn-pm" href="Account/Manage/Email">変更</a>
+            </li>
+            <li>
+                <div class="grow"><div class="title">パスワード</div><div class="meta">定期的な変更は必要ありません。他のサービスと同じものは避けてください。</div></div>
+                <a class="btn-pm" href="Account/Manage/ChangePassword">変更</a>
+            </li>
+            <li>
+                <div class="grow"><div class="title">2段階認証・パスキー</div><div class="meta">ログインをより安全にします。</div></div>
+                <a class="btn-pm" href="Account/Manage/TwoFactorAuthentication">設定</a>
+            </li>
+        </ul>
+    </section>
+</div>
+
+@code {
+    /// <summary>選べるタイムゾーン（IANA 形式）。Windows / Linux のどちらのサーバーでも使える ID だけを並べる。</summary>
+    private static readonly (string Id, string Label)[] ZoneOptions =
+    [
+        ("Asia/Tokyo", "日本（東京）"),
+        ("Asia/Seoul", "韓国（ソウル）"),
+        ("Asia/Shanghai", "中国（上海）"),
+        ("Asia/Taipei", "台湾（台北）"),
+        ("Asia/Singapore", "シンガポール"),
+        ("Asia/Bangkok", "タイ（バンコク）"),
+        ("Asia/Kolkata", "インド"),
+        ("Australia/Sydney", "オーストラリア（シドニー）"),
+        ("Pacific/Auckland", "ニュージーランド"),
+        ("Pacific/Honolulu", "ハワイ"),
+        ("America/Los_Angeles", "アメリカ（太平洋時間）"),
+        ("America/Denver", "アメリカ（山岳部時間）"),
+        ("America/Chicago", "アメリカ（中部時間）"),
+        ("America/New_York", "アメリカ（東部時間）"),
+        ("America/Toronto", "カナダ（トロント）"),
+        ("America/Sao_Paulo", "ブラジル（サンパウロ）"),
+        ("Europe/London", "イギリス"),
+        ("Europe/Paris", "フランス"),
+        ("Europe/Berlin", "ドイツ"),
+        ("UTC", "協定世界時（UTC）"),
+    ];
+
+    private UserProfile? profile;
+    private string? displayName;
+    private string timeZoneId = ApplicationUserDefaults.TimeZoneId;
+    private int goalHours, goalMinutes;
+    private bool busy;
+    private string? error, done;
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Me.GetAsync();
+        displayName = profile.DisplayName;
+        timeZoneId = profile.TimeZoneId;
+        goalHours = profile.DailyGoalMinutes / 60;
+        goalMinutes = profile.DailyGoalMinutes % 60;
+    }
+
+    private async Task Save()
+    {
+        if (profile is null) return;
+        busy = true;
+        error = done = null;
+        try
+        {
+            await Profiles.UpdateAsync(profile.UserId, new UserProfileInput(displayName, timeZoneId, goalHours * 60 + goalMinutes));
+            Me.Invalidate();
+            profile = await Me.GetAsync();
+            done = "保存しました。";
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static class ApplicationUserDefaults
+    {
+        public const string TimeZoneId = PulseMind.Core.Data.ApplicationUser.DefaultTimeZoneId;
+    }
+}

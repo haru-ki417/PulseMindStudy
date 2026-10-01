@@ -43,4 +43,20 @@ public static class StudyTime
         DateTime e = endUtc < toUtc ? endUtc : toUtc;
         return e > s ? (s, e) : null;
     }
+
+    /// <summary>
+    /// 何日続けて勉強しているか。今日まだ勉強していなくても、昨日まで続いていれば途切れていないとみなす。
+    /// </summary>
+    public static int Streak(IReadOnlyDictionary<DateOnly, double> minutesPerDay, DateOnly today, double minimumMinutes = 1)
+    {
+        ArgumentNullException.ThrowIfNull(minutesPerDay);
+        var day = minutesPerDay.GetValueOrDefault(today) >= minimumMinutes ? today : today.AddDays(-1);
+        int streak = 0;
+        while (minutesPerDay.GetValueOrDefault(day) >= minimumMinutes)
+        {
+            streak++;
+            day = day.AddDays(-1);
+        }
+        return streak;
+    }
 }

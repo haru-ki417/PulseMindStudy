@@ -1,0 +1,176 @@
+@* 学習タイマー。開始・終了・取り消しができ、終了時に集中度とメモを残せる *@
+@implements IDisposable
+@inject StudySessionService Sessions
+@inject TimeProvider Time
+
+@if (!loaded)
+{
+    <div class="empty">読み込み中…</div>
+}
+else if (running is not null)
+{
+    <div class="stack" style="gap:6px">
+        <div class="spread">
+            <span class="timer-live">計測中</span>
+            <span class="faint small">@Format.Time(TimeZones.ToLocal(running.StartedAtUtc, Profile.Zone)) から</span>
+        </div>
+        <div class="timer-face" aria-live="off">@Format.Clock(Elapsed)</div>
+        <div class="muted">@(string.IsNullOrEmpty(running.Subject) ? "科目なし" : running.Subject)</div>
+    </div>
+    <div class="row-pm" style="margin-top:16px">
+        <button class="btn-pm primary lg" style="flex:1" @onclick="OpenFinish" disabled="@busy">
+            <Icon Name="stop" /> 終了して記録
+        </button>
+        <button class="btn-pm ghost" @onclick="() => confirmCancel = true" disabled="@busy">取り消し</button>
+    </div>
+}
+else
+{
+    <div class="stack">
+        <div class="field">
+            <label for="timer-subject">科目</label>
+            <input id="timer-subject" class="input-pm" maxlength="@StudySession.SubjectMaxLength" placeholder="例: 数学、英単語、過去問"
+                   @bind="subject" @bind:event="oninput" />
+        </div>
+        @if (recentSubjects.Count > 0)
+        {
+            <div class="row-pm" style="gap:6px">
+                @foreach (var s in recentSubjects)
+                {
+                    <button type="button" class="chip @(s == subject ? "selected" : "")" @onclick="() => subject = s">@s</button>
+                }
+            </div>
+        }
+        <button class="btn-pm primary lg block" @onclick="Start" disabled="@busy">
+            <Icon Name="play" /> 学習を始める
+        </button>
+    </div>
+}
+
+<Notice Kind="error" Message="@error" />
+
+<ConfirmSheet Visible="finishing" Title="おつかれさまでした" ConfirmText="記録する" Busy="busy"
+              OnConfirm="Finish" OnCancel="() => finishing = false">
+    <p class="muted" style="margin:0">@Format.Clock(Elapsed) の学習を記録します。</p>
+    <div class="field">
+        <span class="field-label">集中できましたか？（任意）</span>
+        <ScalePicker Kind="focus" Label="集中度" @bind-Value="focus" />
+    </div>
+    <div class="field">
+        <label for="finish-note">メモ（任意）</label>
+        <textarea id="finish-note" class="input-pm" maxlength="@StudySession.NoteMaxLength" placeholder="例: 二次関数の章末問題、ケアレスミスが多かった" @bind="note"></textarea>
+    </div>
+</ConfirmSheet>
+
+<ConfirmSheet Visible="confirmCancel" Title="計測を取り消しますか？" ConfirmText="取り消す" CancelText="続ける" Danger="true" Busy="busy"
+              OnConfirm="CancelRunning" OnCancel="() => confirmCancel = false">
+    <p class="muted" style="margin:0">この学習は記録されません。</p>
+</ConfirmSheet>
+
+@code {
+    [Parameter, EditorRequired] public UserProfile Profile { get; set; } = default!;
+
+    /// <summary>記録が変わったとき（終了・取り消し）に親へ知らせる</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private StudySession? running;
+    private IReadOnlyList<string> recentSubjects = [];
+    private string subject = "";
+    private int? focus;
+    private string? note;
+    private bool loaded, busy, finishing, confirmCancel;
+    private string? error;
+    private Timer? ticker;
+
+    private TimeSpan Elapsed => running is null ? TimeSpan.Zero : Time.GetUtcNow().UtcDateTime - running.StartedAtUtc;
+
+    protected override async Task OnInitializedAsync()
+    {
+        running = await Sessions.GetRunningAsync(Profile.UserId);
+        recentSubjects = await Sessions.RecentSubjectsAsync(Profile.UserId);
+        loaded = true;
+        UpdateTicker();
+    }
+
+    private async Task Start()
+    {
+        await Run(async () =>
+        {
+            running = await Sessions.StartAsync(Profile.UserId, subject);
+            UpdateTicker();
+            await OnChanged.InvokeAsync();
+        });
+    }
+
+    private void OpenFinish()
+    {
+        focus = null;
+        note = null;
+        finishing = true;
+    }
+
+    private async Task Finish()
+    {
+        await Run(async () =>
+        {
+            var result = await Sessions.StopAsync(Profile.UserId, focus, note);
+            running = null;
+            finishing = false;
+            subject = result.Session.Subject;
+            recentSubjects = await Sessions.RecentSubjectsAsync(Profile.UserId);
+            if (result.WasCapped) error = $"計測が {StudySessionService.MaxSessionLength.TotalHours:0} 時間を超えていたため、{StudySessionService.MaxSessionLength.TotalHours:0} 時間として記録しました。必要なら記録を修正してください。";
+            UpdateTicker();
+            await OnChanged.InvokeAsync();
+        });
+    }
+
+    private async Task CancelRunning()
+    {
+        await Run(async () =>
+        {
+            await Sessions.CancelRunningAsync(Profile.UserId);
+            running = null;
+            confirmCancel = false;
+            UpdateTicker();
+            await OnChanged.InvokeAsync();
+        });
+    }
+
+    private async Task Run(Func<Task> action)
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            await action();
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+            // 別の画面や端末で状態が変わっていることがあるので読み直す
+            running = await Sessions.GetRunningAsync(Profile.UserId);
+            finishing = confirmCancel = false;
+            UpdateTicker();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>計測中だけ、1秒ごとに表示を更新する</summary>
+    private void UpdateTicker()
+    {
+        if (running is null)
+        {
+            ticker?.Dispose();
+            ticker = null;
+        }
+        else
+        {
+            ticker ??= new Timer(_ => _ = InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        }
+    }
+
+    public void Dispose() => ticker?.Dispose();
+}

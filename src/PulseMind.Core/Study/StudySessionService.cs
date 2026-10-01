@@ -12,7 +12,7 @@ public sealed record ManualStudyInput(DateTime StartUtc, DateTime EndUtc, string
 public sealed record StopResult(StudySession Session, bool WasCapped);
 
 /// <summary>学習の記録（タイマーの開始・終了、手入力、削除、集計）</summary>
-public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time)
+public sealed class StudySessionService(IDbContextFactory<PulseMindDbContext> dbFactory, TimeProvider time)
 {
     /// <summary>1回の学習として認める最長の時間。タイマーの止め忘れで1日中「勉強中」にならないようにする。</summary>
     public static readonly TimeSpan MaxSessionLength = TimeSpan.FromHours(12);
@@ -22,14 +22,21 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
 
     private DateTime UtcNow => time.GetUtcNow().UtcDateTime;
 
-    public Task<StudySession?> GetRunningAsync(string userId, CancellationToken cancellationToken = default) =>
+    public async Task<StudySession?> GetRunningAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        return await FindRunningAsync(db, userId, cancellationToken);
+    }
+
+    private static Task<StudySession?> FindRunningAsync(PulseMindDbContext db, string userId, CancellationToken cancellationToken) =>
         db.StudySessions.Where(s => s.UserId == userId && s.EndedAtUtc == null)
             .OrderByDescending(s => s.StartedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<StudySession> StartAsync(string userId, string? subject, CancellationToken cancellationToken = default)
     {
-        if (await GetRunningAsync(userId, cancellationToken) is not null)
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        if (await FindRunningAsync(db, userId, cancellationToken) is not null)
             throw new UserInputException("すでに計測中の学習があります。先に終了してください。");
 
         var now = UtcNow;
@@ -48,7 +55,8 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
 
     public async Task<StopResult> StopAsync(string userId, int? focus = null, string? note = null, CancellationToken cancellationToken = default)
     {
-        var session = await GetRunningAsync(userId, cancellationToken)
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var session = await FindRunningAsync(db, userId, cancellationToken)
             ?? throw new UserInputException("計測中の学習はありません。");
 
         ValidateFocus(focus);
@@ -66,7 +74,8 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
     /// <summary>計測中の学習を記録せずに取り消す</summary>
     public async Task<bool> CancelRunningAsync(string userId, CancellationToken cancellationToken = default)
     {
-        var session = await GetRunningAsync(userId, cancellationToken);
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var session = await FindRunningAsync(db, userId, cancellationToken);
         if (session is null) return false;
         db.StudySessions.Remove(session);
         await db.SaveChangesAsync(cancellationToken);
@@ -82,6 +91,8 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
         if (end - start > MaxSessionLength) throw new UserInputException($"1回の記録は {MaxSessionLength.TotalHours:0} 時間までです。分けて記録してください。");
         if (end > UtcNow + ClockSkew) throw new UserInputException("未来の時刻は記録できません。");
         ValidateFocus(input.Focus);
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
         // 同じ時間帯に2つの学習が重なると、合計時間が実際より多くなってしまうので受け付けない
         var now = UtcNow;
@@ -107,6 +118,8 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
 
     public async Task<bool> DeleteAsync(string userId, long sessionId, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
         // 他人の記録は消せないよう、利用者 ID も条件に入れる
         int deleted = await db.StudySessions.Where(s => s.Id == sessionId && s.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         return deleted > 0;
@@ -115,6 +128,7 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
     /// <summary>期間 [fromUtc, toUtc) に一部でもかかる学習を、新しい順に返す</summary>
     public async Task<IReadOnlyList<StudySession>> ListAsync(string userId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var now = UtcNow;
         var sessions = await db.StudySessions.AsNoTracking()
             .Where(s => s.UserId == userId && s.StartedAtUtc < toUtc && (s.EndedAtUtc ?? now) > fromUtc)
@@ -143,6 +157,20 @@ public sealed class StudySessionService(PulseMindDbContext db, TimeProvider time
         var minutes = StudyTime.MinutesPerLocalDay(spans, zone);
         for (var day = from; day <= to; day = day.AddDays(1)) minutes.TryAdd(day, 0);
         return minutes;
+    }
+
+    /// <summary>最近使った科目（新しい順、重複なし）。入力の候補として出す。</summary>
+    public async Task<IReadOnlyList<string>> RecentSubjectsAsync(string userId, int take = 6, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var since = UtcNow.AddDays(-60);
+        var subjects = await db.StudySessions.AsNoTracking()
+            .Where(s => s.UserId == userId && s.StartedAtUtc >= since && s.Subject != "")
+            .OrderByDescending(s => s.StartedAtUtc)
+            .Select(s => s.Subject)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        return subjects.Distinct(StringComparer.Ordinal).Take(take).ToList();
     }
 
     private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;

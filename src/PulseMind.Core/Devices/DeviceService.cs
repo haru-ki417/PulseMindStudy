@@ -8,7 +8,7 @@ namespace PulseMind.Core.Devices;
 public sealed record IssuedDeviceToken(Device Device, string Token);
 
 /// <summary>機器の登録・一覧・無効化と、トークンによる認証</summary>
-public sealed class DeviceService(PulseMindDbContext db, TimeProvider time)
+public sealed class DeviceService(IDbContextFactory<PulseMindDbContext> dbFactory, TimeProvider time)
 {
     /// <summary>1人が同時に使える機器の数</summary>
     public const int MaxActiveDevicesPerUser = 5;
@@ -24,6 +24,7 @@ public sealed class DeviceService(PulseMindDbContext db, TimeProvider time)
         if (trimmed.Length == 0) throw new UserInputException("機器の名前を入力してください。");
         if (trimmed.Length > Device.NameMaxLength) throw new UserInputException($"機器の名前は {Device.NameMaxLength} 文字までです。");
 
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         int active = await db.Devices.CountAsync(d => d.UserId == userId && d.RevokedAtUtc == null, cancellationToken);
         if (active >= MaxActiveDevicesPerUser)
             throw new UserInputException($"登録できる機器は {MaxActiveDevicesPerUser} 台までです。使っていない機器を無効にしてください。");
@@ -45,12 +46,14 @@ public sealed class DeviceService(PulseMindDbContext db, TimeProvider time)
 
     public async Task<IReadOnlyList<Device>> ListAsync(string userId, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var devices = await db.Devices.AsNoTracking().Where(d => d.UserId == userId).ToListAsync(cancellationToken);
         return devices.OrderBy(d => d.RevokedAtUtc is not null).ThenByDescending(d => d.CreatedAtUtc).ToList();
     }
 
     public async Task<bool> RevokeAsync(string userId, Guid deviceId, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var device = await db.Devices.FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId, cancellationToken);
         if (device is null || device.RevokedAtUtc is not null) return false;
         device.RevokedAtUtc = UtcNow;
@@ -64,6 +67,7 @@ public sealed class DeviceService(PulseMindDbContext db, TimeProvider time)
         if (!DeviceTokens.HasValidShape(token)) return null;
 
         string hash = DeviceTokens.Hash(token!);
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var device = await db.Devices.FirstOrDefaultAsync(d => d.TokenHash == hash && d.RevokedAtUtc == null, cancellationToken);
         if (device is null) return null;
 
