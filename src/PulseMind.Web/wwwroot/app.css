@@ -430,3 +430,19 @@ textarea.input-pm { min-height: 76px; resize: vertical; }
     display: none; left: 0; padding: .7rem 1.25rem; position: fixed; width: 100%; z-index: 1000; font-size: .9rem;
 }
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: .75rem; top: .5rem; }
+
+/* ログイン・登録など、1列の画面 */
+.auth-wrap { max-width: 440px; margin: 24px auto 0; }
+.auth-wrap .auth-card + p, .auth-links { margin-top: 16px; font-size: .9rem; text-align: center; color: var(--pm-text-2); }
+.auth-links a { display: inline-block; margin: 2px 8px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--pm-text-3); font-size: .8rem; margin: 18px 0; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid var(--pm-line); }
+
+/* アカウント管理画面（左に項目、右に内容） */
+.manage { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
+.manage-nav { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 900px) {
+    .manage { grid-template-columns: minmax(0, 1fr); }
+    .manage-nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+    .manage-nav .nav-link-pm { white-space: nowrap; width: auto; }
+}
