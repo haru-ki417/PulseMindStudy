@@ -507,3 +507,11 @@ textarea.input-pm { min-height: 76px; resize: vertical; }
 .verdict.negative svg { color: var(--pm-mood); }
 .meter { height: 8px; border-radius: 999px; background: var(--pm-surface-2); overflow: hidden; }
 .meter > span { display: block; height: 100%; border-radius: 999px; background: var(--pm-primary); }
+
+/* 利用規約・プライバシーポリシー */
+.legal { max-width: 780px; margin: 8px auto 0; padding: 32px 36px; }
+.legal h1 { font-size: 1.5rem; }
+.legal h2 { font-size: 1.05rem; margin: 28px 0 10px; padding-top: 4px; }
+.legal ul { padding-left: 1.3em; }
+.legal li { margin-bottom: 6px; }
+@media (max-width: 600px) { .legal { padding: 22px 18px; } }

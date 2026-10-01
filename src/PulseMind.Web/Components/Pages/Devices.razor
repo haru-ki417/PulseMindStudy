@@ -4,6 +4,7 @@
 @inject CurrentUser Me
 @inject PulseMind.Core.Devices.DeviceService DeviceService
 @inject IJSRuntime JS
+@inject PulseMind.Core.Privacy.AuditLog Audit
 @inject NavigationManager Nav
 
 <PageTitle>機器とデータの取り込み - Pulse &amp; Mind Study</PageTitle>
@@ -141,6 +142,7 @@ $env:PULSEMIND_DEVICE_TOKEN = "pmd_..."</pre>
         try
         {
             issued = await DeviceService.RegisterAsync(profile.UserId, newName);
+            await Audit.WriteAsync(profile.UserId, AuditKind.DeviceRegistered, issued.Device.Name);
             copied = false;
             newName = null;
             devices = await DeviceService.ListAsync(profile.UserId);
@@ -167,7 +169,8 @@ $env:PULSEMIND_DEVICE_TOKEN = "pmd_..."</pre>
         busy = true;
         try
         {
-            await DeviceService.RevokeAsync(profile.UserId, revoking.Id);
+            if (await DeviceService.RevokeAsync(profile.UserId, revoking.Id))
+                await Audit.WriteAsync(profile.UserId, AuditKind.DeviceRevoked, revoking.Name);
             revoking = null;
             devices = await DeviceService.ListAsync(profile.UserId);
         }

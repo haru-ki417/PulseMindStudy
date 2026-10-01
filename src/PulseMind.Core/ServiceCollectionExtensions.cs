@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseMind.Core.Devices;
 using PulseMind.Core.Health;
 using PulseMind.Core.Insights;
+using PulseMind.Core.Privacy;
 using PulseMind.Core.Profiles;
 using PulseMind.Core.Records;
 using PulseMind.Core.Study;
@@ -21,6 +22,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DeviceService>();
         services.AddScoped<UserProfileService>();
         services.AddScoped<InsightService>();
+        services.AddScoped<AuditLog>();
+        services.AddScoped<DataExportService>();
         return services;
     }
 }

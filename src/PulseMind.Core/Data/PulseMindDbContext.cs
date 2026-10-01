@@ -15,6 +15,8 @@ public class PulseMindDbContext(DbContextOptions<PulseMindDbContext> options) : 
 
     public DbSet<Device> Devices => Set<Device>();
 
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         ArgumentNullException.ThrowIfNull(configurationBuilder);
@@ -60,7 +62,16 @@ public class PulseMindDbContext(DbContextOptions<PulseMindDbContext> options) : 
             e.HasIndex(x => x.UserId);
             e.Ignore(x => x.IsActive);
         });
+
+        ConfigureAudit(builder);
     }
+
+    private static void ConfigureAudit(ModelBuilder builder) =>
+        builder.Entity<AuditEvent>(e =>
+        {
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.AtUtc });
+        });
 
     private sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
         v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),

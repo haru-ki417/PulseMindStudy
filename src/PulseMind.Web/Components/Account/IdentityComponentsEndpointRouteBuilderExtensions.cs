@@ -10,6 +10,8 @@ using Microsoft.Extensions.Primitives;
 using PulseMind.Web.Components.Account.Pages;
 using PulseMind.Web.Components.Account.Pages.Manage;
 using PulseMind.Core.Data;
+using PulseMind.Core.Domain;
+using PulseMind.Core.Privacy;
 
 namespace Microsoft.AspNetCore.Routing;
 
@@ -108,13 +110,14 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
             return TypedResults.Challenge(properties, [provider]);
         });
 
-        var loggerFactory = endpoints.ServiceProvider.GetRequiredService<ILoggerFactory>();
-        var downloadLogger = loggerFactory.CreateLogger("DownloadPersonalData");
-
+        // 自分のデータをすべて zip で持ち出す（学習・毎日の記録・心拍・機器・設定）。
+        // POST + 偽造防止トークンにして、他のサイトから勝手にダウンロードさせられないようにしている。
         manageGroup.MapPost("/DownloadPersonalData", async (
             HttpContext context,
             [FromServices] UserManager<ApplicationUser> userManager,
-            [FromServices] AuthenticationStateProvider authenticationStateProvider) =>
+            [FromServices] DataExportService export,
+            [FromServices] AuditLog audit,
+            [FromServices] TimeProvider time) =>
         {
             var user = await userManager.GetUserAsync(context.User);
             if (user is null)
@@ -122,29 +125,14 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
                 return Results.NotFound("アカウント情報を読み込めませんでした。もう一度ログインしてください。");
             }
 
-            var userId = await userManager.GetUserIdAsync(user);
-            downloadLogger.LogInformation("User with ID '{UserId}' asked for their personal data.", userId);
+            // いったん一時ファイルに作り、送り終わったら自動で消す（大きな心拍データでもメモリを使いすぎないように）
+            var file = new FileStream(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1 << 16, FileOptions.DeleteOnClose | FileOptions.Asynchronous);
+            await export.WriteZipAsync(user.Id, file, context.RequestAborted);
+            file.Position = 0;
+            await audit.WriteAsync(user.Id, AuditKind.DataExported, ip: context.Connection.RemoteIpAddress, cancellationToken: context.RequestAborted);
 
-            // Only include personal data for download
-            var personalData = new Dictionary<string, string>();
-            var personalDataProps = typeof(ApplicationUser).GetProperties().Where(
-                prop => Attribute.IsDefined(prop, typeof(PersonalDataAttribute)));
-            foreach (var p in personalDataProps)
-            {
-                personalData.Add(p.Name, p.GetValue(user)?.ToString() ?? "null");
-            }
-
-            var logins = await userManager.GetLoginsAsync(user);
-            foreach (var l in logins)
-            {
-                personalData.Add($"{l.LoginProvider} external login provider key", l.ProviderKey);
-            }
-
-            personalData.Add("Authenticator Key", (await userManager.GetAuthenticatorKeyAsync(user))!);
-            var fileBytes = JsonSerializer.SerializeToUtf8Bytes(personalData);
-
-            context.Response.Headers.TryAdd("Content-Disposition", "attachment; filename=PersonalData.json");
-            return TypedResults.File(fileBytes, contentType: "application/json", fileDownloadName: "PersonalData.json");
+            string name = $"PulseMindStudy-{time.GetUtcNow():yyyyMMdd}.zip";
+            return TypedResults.File(file, contentType: "application/zip", fileDownloadName: name);
         });
 
         return accountGroup;
