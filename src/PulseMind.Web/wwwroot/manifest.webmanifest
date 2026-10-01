@@ -1,0 +1,20 @@
+{
+  "name": "Pulse & Mind Study",
+  "short_name": "Pulse & Mind",
+  "description": "学習時間と睡眠・気分・心拍をいっしょに記録する学習アプリ",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f2f6",
+  "theme_color": "#3b49e0",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "集中モード", "url": "/focus", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "毎日の記録", "url": "/daily" }
+  ]
+}
