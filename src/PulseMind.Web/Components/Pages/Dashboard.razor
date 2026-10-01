@@ -229,7 +229,7 @@
         nowLocal = TimeZones.ToLocal(Time.GetUtcNow().UtcDateTime, profile.Zone);
         var days = await Sessions.DailyMinutesAsync(profile.UserId, today.AddDays(-59), today, profile.Zone);
         todayMinutes = days[today];
-        streak = StudyTime.Streak(days, today);
+        streak = await Sessions.StreakAsync(profile.UserId, today, profile.Zone);
 
         week = days.Where(d => d.Key > today.AddDays(-7))
             .Select(d => new BarItem(d.Key == today ? "今日" : Format.Weekday(d.Key), d.Value,
@@ -243,7 +243,10 @@
         var (fromUtc, toUtc) = TimeZones.LocalDayRangeUtc(today, profile.Zone);
         var now = Time.GetUtcNow().UtcDateTime;
         blocks = (await Sessions.ListAsync(profile.UserId, fromUtc, toUtc))
-            .Select(s => new RhythmBlock(TimeZones.ToLocal(s.StartedAtUtc, profile.Zone), TimeZones.ToLocal(s.EndedAtUtc ?? now, profile.Zone), s.Subject, s.IsRunning))
+            .Select(s => new RhythmBlock(TimeZones.ToLocal(s.StartedAtUtc, profile.Zone),
+                // 止め忘れのタイマーは、集計と同じく 12 時間で区切って描く
+                TimeZones.ToLocal(s.EndedAtUtc ?? (now - s.StartedAtUtc > StudySessionService.MaxSessionLength ? s.StartedAtUtc + StudySessionService.MaxSessionLength : now), profile.Zone),
+                s.Subject, s.IsRunning))
             .ToList();
         subjectsToday = await Sessions.MinutesBySubjectAsync(profile.UserId, fromUtc, toUtc);
     }

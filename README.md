@@ -105,6 +105,7 @@ flowchart LR
 
 フォルダの中の **`start-demo.cmd` をダブルクリック**します。必要なものを確かめてから起動し、準備ができるとブラウザが開きます。
 見本のアカウント（`demo@example.com` / `Demo!2026pass`）に、120日分の見本データが入っています。
+新しい版に更新したあとで表示がおかしいときは、フォルダの `pulsemind-demo.db`（作られている場合）を削除してから起動し直してください。
 
 ### Windows（Visual Studio / LocalDB）
 

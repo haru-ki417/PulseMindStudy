@@ -1,7 +1,7 @@
 @* 目指す試験の設定（設定画面と初回設定で使う） *@
 <div class="stack">
     <div class="row-pm" style="gap:8px">
-        @foreach (var (presetName, presetDate) in ExamPresets.All)
+        @foreach (var (presetName, presetDate) in ExamPresets.All.Where(p => p.Date >= Today))
         {
             <button type="button" class="chip @(Name == presetName && Date == presetDate ? "selected" : "")" @onclick="() => Pick(presetName, presetDate)">
                 @presetName（@Format.Day(presetDate)）
@@ -22,6 +22,9 @@
 </div>
 
 @code {
+    /// <summary>今日（利用者のタイムゾーン）。日付が過ぎた候補は出さない</summary>
+    [Parameter] public DateOnly Today { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+
     [Parameter] public string? Name { get; set; }
 
     [Parameter] public EventCallback<string?> NameChanged { get; set; }

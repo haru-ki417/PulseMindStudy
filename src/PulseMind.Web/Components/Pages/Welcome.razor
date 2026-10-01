@@ -36,7 +36,7 @@
 
         <section class="card-pm welcome-step accent-mood">
             <h2>目指している試験はありますか？</h2>
-            <ExamEditor @bind-Name="examName" @bind-Date="examDate" />
+            <ExamEditor Today="TodayLocal" @bind-Name="examName" @bind-Date="examDate" />
         </section>
 
         <Notice Kind="error" Message="@error" />
@@ -48,6 +48,8 @@
 </div>
 
 @code {
+    private DateOnly TodayLocal => TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, profile?.Zone ?? TimeZones.Resolve(null));
+
     private UserProfile? profile;
     private string? displayName, examName, error;
     private DateOnly? examDate;
@@ -87,8 +89,9 @@
         try
         {
             var today = TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, TimeZones.Resolve(timeZoneId));
-            await Profiles.UpdateExamAsync(profile.UserId, new ExamInput(examName, examDate), today);
+            // 入力の確認は保存の前に両方とも済ませる（片方だけ保存されないように）
             await Profiles.UpdateAsync(profile.UserId, new UserProfileInput(displayName, timeZoneId, goalMinutes));
+            await Profiles.UpdateExamAsync(profile.UserId, new ExamInput(examName, examDate), today);
             Me.Invalidate();
             Nav.NavigateTo("");
         }
