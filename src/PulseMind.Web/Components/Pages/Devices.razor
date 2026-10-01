@@ -1,0 +1,179 @@
+@page "/devices"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CurrentUser Me
+@inject PulseMind.Core.Devices.DeviceService DeviceService
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>機器とデータの取り込み - Pulse &amp; Mind Study</PageTitle>
+
+<div class="page-head">
+    <div>
+        <h1>機器とデータの取り込み</h1>
+        <p>心拍センサーをつないだり、iPhone の「ヘルスケア」からデータを取り込んだりします。</p>
+    </div>
+</div>
+
+@if (profile is null)
+{
+    <div class="empty">読み込み中…</div>
+    return;
+}
+
+<div class="grid grid-2">
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="device" /> 心拍センサー（Arduino）</h2></header>
+        <p class="muted small">
+            Arduino の脈拍センサーを PC につなぎ、付属の「IoTBridge」を動かすと、心拍数が自動で送られます。
+            機器を登録すると「機器トークン」が表示されるので、IoTBridge の設定に貼り付けてください。
+        </p>
+        <div class="row-pm" style="flex-wrap:nowrap">
+            <input class="input-pm" maxlength="@Device.NameMaxLength" placeholder="機器の名前（例: 机の Arduino）" aria-label="機器の名前" @bind="newName" @bind:event="oninput" />
+            <button class="btn-pm primary" style="flex:none" @onclick="Register" disabled="@busy"><Icon Name="plus" /> 登録</button>
+        </div>
+        <Notice Kind="error" Message="@error" />
+
+        @if (issued is not null)
+        {
+            <div class="notice info" style="margin-top:14px;flex-direction:column;gap:8px">
+                <strong>「@issued.Device.Name」の機器トークン</strong>
+                <span class="small">このトークンは<strong>今だけ</strong>表示されます。パスワードと同じように扱い、他の人に見せないでください。</span>
+                <code class="num" style="word-break:break-all;background:var(--pm-surface);color:var(--pm-text);padding:8px 10px;border-radius:8px;width:100%">@issued.Token</code>
+                <div class="row-pm">
+                    <button class="btn-pm" @onclick="Copy"><Icon Name="copy" /> @(copied ? "コピーしました" : "コピー")</button>
+                    <button class="btn-pm ghost" @onclick="() => issued = null">閉じる</button>
+                </div>
+            </div>
+        }
+
+        <h3 style="margin-top:20px">登録済みの機器</h3>
+        @if (devices.Count == 0)
+        {
+            <div class="empty" style="padding:16px">まだ機器は登録されていません。</div>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var d in devices)
+                {
+                    <li>
+                        <div class="grow">
+                            <div class="title">
+                                @d.Name
+                                @if (!d.IsActive)
+                                {
+                                    <span class="tag" style="margin-left:6px">無効</span>
+                                }
+                            </div>
+                            <div class="meta num">
+                                @d.TokenPrefix… ・
+                                @(d.LastSeenAtUtc is DateTime seen ? $"最終通信 {TimeZones.ToLocal(seen, profile.Zone):M/d H:mm}" : "まだ通信していません")
+                            </div>
+                        </div>
+                        @if (d.IsActive)
+                        {
+                            <button class="btn-pm danger" @onclick="() => revoking = d">無効にする</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="watch" /> iPhone・Apple Watch</h2></header>
+        <p class="muted small">
+            iPhone の「ヘルスケア」アプリから書き出したデータを取り込むと、心拍数・歩数・睡眠が反映されます。
+            Apple Watch で測った心拍や睡眠もここに含まれます。
+        </p>
+        <ol class="small muted" style="padding-left:1.2em">
+            <li>iPhone で「ヘルスケア」を開き、右上のプロフィール画像をタップ</li>
+            <li>いちばん下の「すべてのヘルスケアデータを書き出す」→「書き出す」</li>
+            <li>できた「書き出したデータ.zip」を、AirDrop やファイルアプリでこの端末に保存</li>
+            <li>次の画面でその zip を選ぶ</li>
+        </ol>
+        <a class="btn-pm primary" href="import/apple-health"><Icon Name="upload" /> 書き出したデータを取り込む</a>
+    </section>
+
+    <section class="card-pm span-2">
+        <header><h2 class="card-title-icon"><Icon Name="info" /> IoTBridge の設定例</h2></header>
+        <p class="muted small">IoTBridge のフォルダにある <code>appsettings.json</code>（または環境変数）に、次の値を設定します。トークンはリポジトリなどに保存しないでください。</p>
+<pre class="num small" style="background:var(--pm-surface-2);padding:14px;border-radius:10px;overflow-x:auto;margin:0">{
+  "Bridge": {
+    "ServerUrl": "@ServerUrl",
+    "SerialPort": "COM3",
+    "BaudRate": 115200
+  }
+}
+
+# トークンは環境変数で渡す（Windows の PowerShell の例）
+$env:PULSEMIND_DEVICE_TOKEN = "pmd_..."</pre>
+    </section>
+</div>
+
+<ConfirmSheet Visible="revoking is not null" Title="この機器を無効にしますか？" ConfirmText="無効にする" Danger="true" Busy="busy"
+              OnConfirm="Revoke" OnCancel="() => revoking = null">
+    <p class="muted" style="margin:0">「@revoking?.Name」からの送信を受け付けなくなります。これまでに記録された心拍は残ります。</p>
+</ConfirmSheet>
+
+@code {
+    private UserProfile? profile;
+    private IReadOnlyList<Device> devices = [];
+    private string? newName, error;
+    private PulseMind.Core.Devices.IssuedDeviceToken? issued;
+    private Device? revoking;
+    private bool busy, copied;
+
+    private string ServerUrl => Nav.BaseUri.TrimEnd('/');
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Me.GetAsync();
+        devices = await DeviceService.ListAsync(profile.UserId);
+    }
+
+    private async Task Register()
+    {
+        if (profile is null) return;
+        busy = true;
+        error = null;
+        try
+        {
+            issued = await DeviceService.RegisterAsync(profile.UserId, newName);
+            copied = false;
+            newName = null;
+            devices = await DeviceService.ListAsync(profile.UserId);
+        }
+        catch (UserInputException ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task Copy()
+    {
+        if (issued is null) return;
+        copied = await JS.InvokeAsync<bool>("pulseMind.copy", issued.Token);
+    }
+
+    private async Task Revoke()
+    {
+        if (profile is null || revoking is null) return;
+        busy = true;
+        try
+        {
+            await DeviceService.RevokeAsync(profile.UserId, revoking.Id);
+            revoking = null;
+            devices = await DeviceService.ListAsync(profile.UserId);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

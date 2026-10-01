@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PulseMind.Core\PulseMind.Core.csproj" />
     <ProjectReference Include="..\..\src\PulseMind.Web\PulseMind.Web.csproj" />
+    <ProjectReference Include="..\..\src\PulseMind.IoTBridge\PulseMind.IoTBridge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

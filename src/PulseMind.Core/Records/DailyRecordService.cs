@@ -62,4 +62,59 @@ public sealed class DailyRecordService(IDbContextFactory<PulseMindDbContext> dbF
         if (input.Mood is < 1 or > 5) throw new UserInputException("気分は 1〜5 で選んでください。");
         if (input.Note is { Length: > DailyRecord.NoteMaxLength }) throw new UserInputException($"メモは {DailyRecord.NoteMaxLength} 文字までです。");
     }
+
+    /// <summary>
+    /// 取り込んだ歩数・睡眠を日ごとの記録に反映する。
+    /// 歩数は機器の値で上書きする。睡眠は、手入力の値がある日は overwriteSleep が true のときだけ上書きする
+    /// （ヘルスケアの睡眠はつけ忘れで短くなることがあり、本人の入力を優先するため）。
+    /// </summary>
+    /// <returns>更新した日数</returns>
+    public async Task<int> ApplyImportedAsync(
+        string userId, IReadOnlyDictionary<DateOnly, int> steps, IReadOnlyDictionary<DateOnly, double> sleepHours, bool overwriteSleep,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(steps);
+        ArgumentNullException.ThrowIfNull(sleepHours);
+        var days = steps.Keys.Union(sleepHours.Keys).ToList();
+        if (days.Count == 0) return 0;
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        DateOnly from = days.Min(), to = days.Max();
+        var existing = await db.DailyRecords.Where(r => r.UserId == userId && r.Date >= from && r.Date <= to)
+            .ToDictionaryAsync(r => r.Date, cancellationToken);
+        var now = time.GetUtcNow().UtcDateTime;
+        int updated = 0;
+
+        foreach (var day in days)
+        {
+            bool changed = false;
+            if (!existing.TryGetValue(day, out var record))
+            {
+                record = new DailyRecord { UserId = userId, Date = day };
+                db.DailyRecords.Add(record);
+            }
+            if (steps.TryGetValue(day, out int s) && s is >= 0 and <= MaxSteps && record.Steps != s)
+            {
+                record.Steps = s;
+                changed = true;
+            }
+            if (sleepHours.TryGetValue(day, out double h) && h is > 0 and <= 24 && (record.SleepHours is null || overwriteSleep))
+            {
+                record.SleepHours = Math.Round(h, 2);
+                changed = true;
+            }
+            if (changed)
+            {
+                record.UpdatedAtUtc = now;
+                updated++;
+            }
+            else if (record.Id == 0)
+            {
+                db.DailyRecords.Remove(record);
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return updated;
+    }
 }
