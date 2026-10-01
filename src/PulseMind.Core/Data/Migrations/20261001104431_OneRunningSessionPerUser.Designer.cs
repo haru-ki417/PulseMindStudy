@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PulseMind.Core.Data;
 
@@ -11,9 +12,11 @@ using PulseMind.Core.Data;
 namespace PulseMind.Core.Data.Migrations
 {
     [DbContext(typeof(PulseMindDbContext))]
-    partial class PulseMindDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001104431_OneRunningSessionPerUser")]
+    partial class OneRunningSessionPerUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

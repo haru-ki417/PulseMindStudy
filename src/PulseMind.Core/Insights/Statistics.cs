@@ -13,7 +13,7 @@ public static class Statistics
     /// <summary>
     /// スピアマンの順位相関係数と、その 95% 信頼区間。
     /// 気分や集中度のような 1〜5 の段階の値や、外れ値（極端に長く勉強した日など）があっても扱いやすいよう、値そのものではなく順位で比べる。
-    /// 信頼区間はフィッシャーの z 変換で求め、標準誤差には順位相関向けの補正（1.06 / √(n−3)）を使う。
+    /// 信頼区間はフィッシャーの z 変換で求め、分散には順位相関向けの補正（Fieller ほか: 1.06 / (n−3)）を使う。
     /// </summary>
     /// <returns>データが 4 件未満か、どちらかの値がすべて同じで計算できないときは null</returns>
     public static Correlation? Spearman(IReadOnlyList<(double X, double Y)> pairs)
@@ -30,7 +30,7 @@ public static class Statistics
         // r が ±1 ちょうどだと z 変換が無限大になるので、わずかに内側に寄せる
         double clamped = Math.Clamp(rho, -0.999999, 0.999999);
         double z = Math.Atanh(clamped);
-        double se = 1.06 / Math.Sqrt(n - 3);
+        double se = Math.Sqrt(1.06 / (n - 3));
         return new Correlation(rho, Math.Tanh(z - 1.96 * se), Math.Tanh(z + 1.96 * se), n);
     }
 

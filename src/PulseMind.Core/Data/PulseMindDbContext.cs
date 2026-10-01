@@ -45,6 +45,8 @@ public class PulseMindDbContext(DbContextOptions<PulseMindDbContext> options)
         {
             e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.UserId, x.StartedAtUtc });
+            // 計測中（終了時刻が無い）の学習は 1 人 1 つまで。ボタンの連打などで同時に開始されても二重にならないようにする
+            e.HasIndex(x => x.UserId).IsUnique().HasFilter("[EndedAtUtc] IS NULL").HasDatabaseName("IX_StudySessions_OneRunningPerUser");
             e.Ignore(x => x.IsRunning);
             e.Ignore(x => x.Duration);
         });

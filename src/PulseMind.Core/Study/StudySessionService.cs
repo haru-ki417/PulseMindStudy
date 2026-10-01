@@ -49,7 +49,15 @@ public sealed class StudySessionService(IDbContextFactory<PulseMindDbContext> db
             CreatedAtUtc = now,
         };
         db.StudySessions.Add(session);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // 同時に別の開始が保存された（「計測中は 1 つまで」の制約に当たった）
+            throw new UserInputException("すでに計測中の学習があります。先に終了してください。");
+        }
         return session;
     }
 
@@ -96,8 +104,12 @@ public sealed class StudySessionService(IDbContextFactory<PulseMindDbContext> db
 
         // 同じ時間帯に2つの学習が重なると、合計時間が実際より多くなってしまうので受け付けない
         var now = UtcNow;
+        // 止め忘れのタイマーは、終了したときと同じく 12 時間で区切った範囲だけを「使用中」とみなす
+        var runningCapStart = now - MaxSessionLength;
         bool overlaps = await db.StudySessions.AnyAsync(s =>
-            s.UserId == userId && s.StartedAtUtc < end && (s.EndedAtUtc ?? now) > start, cancellationToken);
+            s.UserId == userId && s.StartedAtUtc < end
+            && (s.EndedAtUtc ?? (s.StartedAtUtc > runningCapStart ? now : s.StartedAtUtc.AddHours(MaxSessionLength.TotalHours))) > start,
+            cancellationToken);
         if (overlaps) throw new UserInputException("この時間帯には、すでに別の学習が記録されています。");
 
         var session = new StudySession

@@ -28,7 +28,8 @@ public sealed class AuditLog(IDbContextFactory<PulseMindDbContext> dbFactory, Ti
 
         // ついでに古い記録を消す（専用の定期処理を持たずに済むように）
         var cutoff = now.AddDays(-RetentionDays);
-        await db.AuditEvents.Where(e => e.UserId == userId && e.AtUtc < cutoff).ExecuteDeleteAsync(cancellationToken);
+        // （しばらく使っていない利用者の分も、ここでまとめて消す）
+        await db.AuditEvents.Where(e => e.AtUtc < cutoff).ExecuteDeleteAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<AuditEvent>> RecentAsync(string userId, int take = 20, CancellationToken cancellationToken = default)

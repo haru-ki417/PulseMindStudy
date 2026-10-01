@@ -117,8 +117,19 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
             [FromServices] UserManager<ApplicationUser> userManager,
             [FromServices] DataExportService export,
             [FromServices] AuditLog audit,
-            [FromServices] TimeProvider time) =>
+            [FromServices] TimeProvider time,
+            [FromServices] IAntiforgery antiforgery) =>
         {
+            // フォームの値を受け取らない API は偽造防止の確認が自動では行われないので、ここで確かめる
+            try
+            {
+                await antiforgery.ValidateRequestAsync(context);
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return Results.BadRequest("ページを読み込み直してから、もう一度お試しください。");
+            }
+
             var user = await userManager.GetUserAsync(context.User);
             if (user is null)
             {

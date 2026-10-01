@@ -70,7 +70,7 @@ az ad app federated-credential create --id $app --parameters '{
 }'
 ```
 
-GitHub のリポジトリで **Settings → Environments** に `production` を作り、**Settings → Secrets and variables → Actions → Variables** に次を登録します（どれも秘密の値ではありません）。
+GitHub のリポジトリで **Settings → Environments** に `production` を作り（「Deployment branches」を `main` だけに制限しておくと、他のブランチから配置されません）、**Settings → Secrets and variables → Actions → Variables** に次を登録します（どれも秘密の値ではありません）。
 
 | 名前 | 値 |
 |---|---|
@@ -84,7 +84,10 @@ GitHub のリポジトリで **Settings → Environments** に `production` を�
 GitHub の **Actions → Deploy → Run workflow**。テスト → 発行 → 配置 → `/healthz` の確認まで自動で行います。
 初回の起動時に、アプリがデータベースのテーブルを作ります。
 
-## 5. （任意）確認メールを送る
+## 5. （任意。ただし公開するなら推奨）確認メールを送る
+
+SMTP を設定しない場合、登録時のメール確認は行われず、**パスワードを忘れたときの再設定メールも送れません**。
+多くの人に使ってもらう場合は設定してください。
 
 SMTP サーバー（例: Azure Communication Services のメール、SendGrid、Gmail のアプリパスワード）がある場合、
 手順 1 のコマンドに次を付けて再実行すると、登録時にメールアドレスの確認が必須になります。
@@ -97,5 +100,6 @@ SMTP サーバー（例: Azure Communication Services のメール、SendGrid、
 
 - **起動しない / 500 エラー**: Azure portal の App Service →「ログ ストリーム」でエラーを確認します。
   `Login failed for user '<token-identified principal>'` と出る場合は、手順 2 が済んでいません。
-- **しばらく使わないと最初の表示が遅い**: 無料枠のデータベースは使われていないと自動で停止し、次の接続で起動します（数十秒）。
+- **しばらく使わないと最初の表示が遅い**: 無料枠のデータベースは 1 時間使われないと自動で休止し、次の接続で起動します（数十秒）。
+  Azure の正常性チェック（`/healthz`）はデータベースに触れないので、休止を妨げません。データベースまで確かめたいときは `/healthz/db` を開きます。
 - **ログインし直しになる**: Cookie の暗号化の鍵はデータベースに保存しているので、再起動では起きません。データベースを作り直した場合は全員が再ログインになります。

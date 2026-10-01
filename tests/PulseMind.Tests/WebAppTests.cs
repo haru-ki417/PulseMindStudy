@@ -60,6 +60,9 @@ public sealed class WebAppTests(PulseMindAppFactory factory) : IClassFixture<Pul
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Healthy", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var db = await client.GetAsync(new Uri("/healthz/db", UriKind.Relative), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, db.StatusCode);
     }
 
     [Fact]

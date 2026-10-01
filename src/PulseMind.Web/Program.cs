@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PulseMind.Core;
 using PulseMind.Core.Data;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using PulseMind.Web.Api;
 using PulseMind.Web.Components;
@@ -69,7 +70,9 @@ if (builder.Configuration.GetSection("Smtp").Get<SmtpOptions>() is { IsConfigure
 else
     builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// ---- Azure App Service などの中継サーバーの後ろで動くとき、利用者の本当の IP アドレスと https を受け取る
+// ---- 中継サーバーの後ろで動くとき、利用者の本当の IP アドレスと https を受け取る。
+// Azure App Service（Linux）は ASPNETCORE_FORWARDEDHEADERS_ENABLED で同じ処理を自動で行うため、そこでは有効にしないこと
+// （二重に処理すると、利用者が送った偽の X-Forwarded-For を信じてしまう）。
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -115,21 +118,19 @@ builder.Services.AddRateLimiter(options =>
             })
             : RateLimitPartition.GetNoLimiter(""));
 
-    // 機器 API: 送信元（トークンの先頭、なければ IP アドレス）ごとに 1 分 60 回まで
+    // 機器 API: 送信元の IP アドレスごとに 1 分 120 回まで（1台なら 1 分 6 回程度。でたらめなトークンを大量に試すことも防ぐ）
     options.AddPolicy(DeviceApi.RateLimitPolicy, context =>
-    {
-        string? token = DeviceApi.ReadBearer(context.Request);
-        string key = token is { Length: > 12 } ? "t:" + token[..12] : "ip:" + context.Connection.RemoteIpAddress;
-        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        RateLimitPartition.GetFixedWindowLimiter("device:" + context.Connection.RemoteIpAddress, _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 60,
+            PermitLimit = 120,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
-        });
-    });
+        }));
 });
 
-builder.Services.AddHealthChecks().AddDbContextCheck<PulseMindDbContext>();
+// 死活監視。データベースの確認は別の道筋に分ける（Azure の正常性チェックが毎分 DB に触れると、
+// サーバーレスのデータベースが休止できず、無料枠をすぐに使い切ってしまうため）
+builder.Services.AddHealthChecks().AddDbContextCheck<PulseMindDbContext>(tags: ["db"]);
 
 var app = builder.Build();
 
@@ -158,7 +159,11 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
     else await database.MigrateAsync();
 }
 
-await DemoDataSeeder.SeedAsync(app.Services, app.Configuration);
+// 見本データは開発環境でだけ作る（README に載せたパスワードのアカウントが本番にできないように）
+if (app.Environment.IsDevelopment())
+{
+    await DemoDataSeeder.SeedAsync(app.Services, app.Configuration);
+}
 
 // 「ページが見つかりません」などの画面は人向けのページだけに出す（機器向け API は状態コードをそのまま返す）
 app.UseWhen(
@@ -178,8 +183,9 @@ app.MapAdditionalIdentityEndpoints();
 
 app.MapDeviceApi();
 
-// 死活監視（Azure の正常性チェックが使う）。中身の詳細は返さない
-app.MapHealthChecks("/healthz");
+// 死活監視。/healthz はアプリが動いているかだけ（Azure の正常性チェック用）、/healthz/db はデータベースまで確認する
+app.MapHealthChecks("/healthz", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/healthz/db", new HealthCheckOptions { Predicate = check => check.Tags.Contains("db") });
 
 await app.RunAsync();
 

@@ -71,14 +71,15 @@ public sealed class InsightService(IDbContextFactory<PulseMindDbContext> dbFacto
             return new DayFacts(d, minutes[d], focusByDay.TryGetValue(d, out double f) ? f : null, r?.SleepHours, r?.Mood, r?.Steps);
         }).ToList();
 
+        // 勉強しなかった日（0 分）も含める。除くと「眠れなかった日は勉強しなかった」という関係が見えなくなるため
         var relations = new List<RelationInsight>
         {
             Relation("sleep-study", "睡眠時間と学習時間", "睡眠", "学習", "時間", "分",
-                facts.Where(d => d.SleepHours is not null && d.StudyMinutes > 0).Select(d => (d.SleepHours!.Value, d.StudyMinutes))),
+                facts.Where(d => d.SleepHours is not null).Select(d => (d.SleepHours!.Value, d.StudyMinutes))),
             Relation("sleep-focus", "睡眠時間と集中度", "睡眠", "集中度", "時間", "",
                 facts.Where(d => d.SleepHours is not null && d.Focus is not null).Select(d => (d.SleepHours!.Value, d.Focus!.Value))),
             Relation("mood-study", "気分と学習時間", "気分", "学習", "", "分",
-                facts.Where(d => d.Mood is not null && d.StudyMinutes > 0).Select(d => ((double)d.Mood!.Value, d.StudyMinutes))),
+                facts.Where(d => d.Mood is not null).Select(d => ((double)d.Mood!.Value, d.StudyMinutes))),
             Relation("steps-focus", "歩数と集中度", "歩数", "集中度", "歩", "",
                 facts.Where(d => d.Steps is not null && d.Focus is not null).Select(d => ((double)d.Steps!.Value, d.Focus!.Value))),
         };

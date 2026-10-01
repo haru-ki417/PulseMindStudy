@@ -114,4 +114,18 @@ public class AppleHealthTests
         Assert.Equal((9000, 8.0, 4, "手入力"), (list[0].Steps!.Value, list[0].SleepHours!.Value, list[0].Mood!.Value, list[0].Note!));
         Assert.Equal((4000, 7.25), (list[1].Steps!.Value, list[1].SleepHours!.Value));
     }
+
+    [Fact]
+    public async Task 未来の日付の歩数や睡眠は記録しない()
+    {
+        await using var db = await TestDatabase.CreateAsync();
+        string user = await db.AddUserAsync();
+        var records = new DailyRecordService(db.Factory, db.Time);
+        var future = new DateOnly(2030, 1, 1);
+
+        int updated = await records.ApplyImportedAsync(user, new Dictionary<DateOnly, int> { [future] = 1000 },
+            new Dictionary<DateOnly, double>(), overwriteSleep: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, updated);
+    }
 }
