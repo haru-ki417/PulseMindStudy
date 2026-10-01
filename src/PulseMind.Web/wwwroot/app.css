@@ -22,6 +22,7 @@
     --pm-primary: #4656d6;
     --pm-primary-hover: #3846bd;
     --pm-primary-soft: #eceffe;
+    --pm-on-primary: #ffffff;
     --pm-pulse: #e5484d;
     --pm-pulse-soft: #fdeced;
     --pm-sleep: #8e4ec6;
@@ -72,6 +73,7 @@
         --pm-primary: #7b88f2;
         --pm-primary-hover: #95a0f6;
         --pm-primary-soft: #232a4a;
+        --pm-on-primary: #0d1226;
         --pm-pulse: #f2676b;
         --pm-pulse-soft: #3a2125;
         --pm-sleep: #b07fe0;
@@ -250,8 +252,8 @@ h1:focus { outline: none; }
 .btn-pm:active { transform: translateY(1px); }
 .btn-pm:disabled { opacity: .55; cursor: not-allowed; }
 .btn-pm svg { width: 18px; height: 18px; }
-.btn-pm.primary { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
-.btn-pm.primary:hover { background: var(--pm-primary-hover); border-color: var(--pm-primary-hover); color: #fff; }
+.btn-pm.primary { background: var(--pm-primary); border-color: var(--pm-primary); color: var(--pm-on-primary); }
+.btn-pm.primary:hover { background: var(--pm-primary-hover); border-color: var(--pm-primary-hover); color: var(--pm-on-primary); }
 .btn-pm.danger { color: var(--pm-danger); }
 .btn-pm.danger.solid { background: var(--pm-danger); border-color: var(--pm-danger); color: #fff; }
 .btn-pm.ghost { border-color: transparent; background: transparent; color: var(--pm-text-2); }
@@ -260,7 +262,7 @@ h1:focus { outline: none; }
 .btn-pm.icon { min-height: 34px; width: 34px; padding: 0; }
 .btn-pm.block { width: 100%; }
 
-.btn-primary { --bs-btn-bg: var(--pm-primary); --bs-btn-border-color: var(--pm-primary); --bs-btn-hover-bg: var(--pm-primary-hover); --bs-btn-hover-border-color: var(--pm-primary-hover); --bs-btn-active-bg: var(--pm-primary-hover); font-weight: 600; }
+.btn-primary { --bs-btn-color: var(--pm-on-primary); --bs-btn-hover-color: var(--pm-on-primary); --bs-btn-bg: var(--pm-primary); --bs-btn-border-color: var(--pm-primary); --bs-btn-hover-bg: var(--pm-primary-hover); --bs-btn-hover-border-color: var(--pm-primary-hover); --bs-btn-active-bg: var(--pm-primary-hover); font-weight: 600; }
 
 /* 入力欄 */
 .field { display: flex; flex-direction: column; gap: 6px; }
