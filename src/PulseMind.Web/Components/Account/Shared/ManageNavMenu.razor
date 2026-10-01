@@ -1,34 +1,26 @@
-﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity
 @using PulseMind.Core.Data
 
 @inject SignInManager<ApplicationUser> SignInManager
 
-<ul class="nav nav-pills flex-column">
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All">Profile</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Email">Email</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/ChangePassword">Password</NavLink>
-    </li>
+<nav class="manage-nav" aria-label="アカウントのメニュー">
+    <NavLink class="nav-link-pm" href="Account/Manage" Match="NavLinkMatch.All"><Icon Name="user" /> プロフィール</NavLink>
+    <NavLink class="nav-link-pm" href="Account/Manage/Email">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6.5 8.5 6.5 8.5-6.5" /></svg>
+        メールアドレス
+    </NavLink>
+    <NavLink class="nav-link-pm" href="Account/Manage/ChangePassword"><Icon Name="lock" /> パスワード</NavLink>
+    <NavLink class="nav-link-pm" href="Account/Manage/Passkeys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 9.2-9.2" /><path d="m17 6 3 3" /><path d="m14.5 8.5 2 2" /></svg>
+        パスキー
+    </NavLink>
+    <NavLink class="nav-link-pm" href="Account/Manage/TwoFactorAuthentication"><Icon Name="shield" /> 2段階認証</NavLink>
     @if (hasExternalLogins)
     {
-        <li class="nav-item">
-            <NavLink class="nav-link" href="Account/Manage/ExternalLogins">External logins</NavLink>
-        </li>
+        <NavLink class="nav-link-pm" href="Account/Manage/ExternalLogins"><Icon Name="external" /> 外部ログイン</NavLink>
     }
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication">Two-factor authentication</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Passkeys">Passkeys</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/PersonalData">Personal data</NavLink>
-    </li>
-</ul>
+    <NavLink class="nav-link-pm" href="Account/Manage/PersonalData"><Icon Name="download" /> 個人データ</NavLink>
+</nav>
 
 @code {
     private bool hasExternalLogins;

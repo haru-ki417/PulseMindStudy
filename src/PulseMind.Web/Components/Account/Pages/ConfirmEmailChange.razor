@@ -1,4 +1,4 @@
-﻿@page "/Account/ConfirmEmailChange"
+@page "/Account/ConfirmEmailChange"
 
 @using System.Text
 @using Microsoft.AspNetCore.Identity
@@ -9,11 +9,15 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Confirm email change</PageTitle>
+<PageTitle>メールアドレスの変更 - Pulse &amp; Mind Study</PageTitle>
 
-<h1>Confirm email change</h1>
-
-<StatusMessage Message="@message" />
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>メールアドレスの変更</h1>
+        <StatusMessage Message="@message" />
+    </div>
+    <p class="auth-links"><a href="Account/Manage/Email">アカウント設定へ</a></p>
+</div>
 
 @code {
     private string? message;
@@ -35,14 +39,14 @@
         if (UserId is null || Email is null || Code is null)
         {
             RedirectManager.RedirectToWithStatus(
-                "Account/Login", "Error: Invalid email change confirmation link.", HttpContext);
+                "Account/Login", "エラー: メールアドレス変更の確認リンクが正しくありません。", HttpContext);
             return;
         }
 
         var user = await UserManager.FindByIdAsync(UserId);
         if (user is null)
         {
-            message = "Unable to find user with Id '{userId}'";
+            message = "エラー: アカウントが見つかりませんでした。";
             return;
         }
 
@@ -50,7 +54,7 @@
         var result = await UserManager.ChangeEmailAsync(user, Email, code);
         if (!result.Succeeded)
         {
-            message = "Error changing email.";
+            message = "エラー: メールアドレスを変更できませんでした。リンクの有効期限が切れている可能性があります。";
             return;
         }
 
@@ -59,11 +63,11 @@
         var setUserNameResult = await UserManager.SetUserNameAsync(user, Email);
         if (!setUserNameResult.Succeeded)
         {
-            message = "Error changing user name.";
+            message = "エラー: メールアドレスを変更できませんでした。時間をおいてもう一度お試しください。";
             return;
         }
 
         await SignInManager.RefreshSignInAsync(user);
-        message = "Thank you for confirming your email change.";
+        message = "メールアドレスを変更しました。";
     }
 }

@@ -1,4 +1,4 @@
-﻿@page "/Account/Register"
+@page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Text
@@ -15,43 +15,46 @@
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Register</PageTitle>
+<PageTitle>新規登録 - Pulse &amp; Mind Study</PageTitle>
 
-<h1>Register</h1>
-
-<div class="row">
-    <div class="col-lg-6">
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>新規登録</h1>
+        <p class="muted">メールアドレスとパスワードだけで、すぐに使い始められます。</p>
         <StatusMessage Message="@Message" />
-        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register" class="stack">
             <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
-            <hr />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
-                <ValidationMessage For="() => Input.Email" class="text-danger" />
+            <div class="field">
+                <label for="Input.Email">メールアドレス</label>
+                <InputText @bind-Value="Input.Email" id="Input.Email" type="email" class="input-pm" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                <ValidationMessage For="() => Input.Email" />
             </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.Password">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
+            <div class="field">
+                <label for="Input.Password">パスワード</label>
+                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="input-pm" autocomplete="new-password" aria-required="true" aria-describedby="password-hint" />
+                <span class="hint" id="password-hint">8文字以上で、英大文字・英小文字・数字・記号を含めてください。</span>
+                <ValidationMessage For="() => Input.Password" />
             </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm Password</label>
-                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
+            <div class="field">
+                <label for="Input.ConfirmPassword">パスワード（確認）</label>
+                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="input-pm" autocomplete="new-password" aria-required="true" />
+                <ValidationMessage For="() => Input.ConfirmPassword" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+            <div>
+                <div class="form-check">
+                    <InputCheckbox @bind-Value="Input.AcceptTerms" id="Input.AcceptTerms" class="form-check-input" aria-required="true" />
+                    <label class="form-check-label" for="Input.AcceptTerms"><a href="terms" target="_blank">利用規約</a>と<a href="privacy" target="_blank">プライバシーポリシー</a>に同意します</label>
+                </div>
+                <ValidationMessage For="() => Input.AcceptTerms" />
+            </div>
+            <button type="submit" class="btn-pm primary block lg">無料で登録</button>
+            <p class="faint small auth-note">このアプリは医療機器ではありません。</p>
         </EditForm>
+        <ExternalLoginPicker />
     </div>
-    <div class="col-lg-4 col-lg-offset-2">
-        <section>
-            <h3>Use another service to register.</h3>
-            <hr />
-            <ExternalLoginPicker />
-        </section>
-    </div>
+    <p class="auth-links">
+        すでにアカウントをお持ちの方は <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Login", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">ログイン</a>
+    </p>
 </div>
 
 @code {
@@ -63,7 +66,7 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
-    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+    private string? Message => identityErrors is null ? null : $"エラー: {string.Join(" ", identityErrors.Select(error => error.Description).Distinct())}";
 
     protected override void OnInitialized()
     {
@@ -73,6 +76,10 @@
     public async Task RegisterUser(EditContext editContext)
     {
         var user = CreateUser();
+
+        // 同意した利用規約の版と日時を記録する
+        user.AcceptedTermsVersion = PulseMind.Core.Legal.Terms.CurrentVersion;
+        user.AcceptedTermsAtUtc = DateTime.UtcNow;
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
@@ -133,20 +140,24 @@
 
     private sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
-        [Display(Name = "Email")]
+        [Required(ErrorMessage = "{0}を入力してください。")]
+        [EmailAddress(ErrorMessage = "メールアドレスの形式が正しくありません。")]
+        [Display(Name = "メールアドレス")]
         public string Email { get; set; } = "";
 
-        [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "{0}を入力してください。")]
+        [StringLength(100, ErrorMessage = "{0}は{2}文字以上{1}文字以下で入力してください。", MinimumLength = 8)]
         [DataType(DataType.Password)]
-        [Display(Name = "Password")]
+        [Display(Name = "パスワード")]
         public string Password { get; set; } = "";
 
         [DataType(DataType.Password)]
-        [Display(Name = "Confirm password")]
-        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        [Display(Name = "パスワード（確認）")]
+        [Compare("Password", ErrorMessage = "パスワードが一致しません。")]
         public string ConfirmPassword { get; set; } = "";
+
+        [Range(typeof(bool), "true", "true", ErrorMessage = "利用規約とプライバシーポリシーへの同意が必要です。")]
+        [Display(Name = "利用規約とプライバシーポリシーへの同意")]
+        public bool AcceptTerms { get; set; }
     }
 }

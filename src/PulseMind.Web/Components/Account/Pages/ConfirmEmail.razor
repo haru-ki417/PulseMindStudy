@@ -1,4 +1,4 @@
-﻿@page "/Account/ConfirmEmail"
+@page "/Account/ConfirmEmail"
 
 @using System.Text
 @using Microsoft.AspNetCore.Identity
@@ -8,10 +8,15 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Confirm email</PageTitle>
+<PageTitle>メールアドレスの確認 - Pulse &amp; Mind Study</PageTitle>
 
-<h1>Confirm email</h1>
-<StatusMessage Message="@statusMessage" />
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>メールアドレスの確認</h1>
+        <StatusMessage Message="@statusMessage" />
+    </div>
+    <p class="auth-links"><a href="">ホームへ</a> <a href="Account/Login">ログイン</a></p>
+</div>
 
 @code {
     private string? statusMessage;
@@ -37,13 +42,15 @@
         if (user is null)
         {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
-            statusMessage = $"Error loading user with ID {UserId}";
+            statusMessage = "エラー: アカウントが見つかりませんでした。リンクが正しいかご確認ください。";
         }
         else
         {
             var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
             var result = await UserManager.ConfirmEmailAsync(user, code);
-            statusMessage = result.Succeeded ? "Thank you for confirming your email." : "Error confirming your email.";
+            statusMessage = result.Succeeded
+                ? "メールアドレスを確認しました。ありがとうございます。"
+                : "エラー: メールアドレスを確認できませんでした。リンクの有効期限が切れている可能性があります。";
         }
     }
 }

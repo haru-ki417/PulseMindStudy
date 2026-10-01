@@ -1,12 +1,20 @@
-﻿@if (!string.IsNullOrEmpty(DisplayMessage))
+@*
+    画面上部のお知らせ。メッセージの先頭が「エラー:」ならエラー、「お知らせ:」なら案内、それ以外は完了として表示する。
+    先頭の目印は表示しない（色とアイコンで区別する）。
+*@
+@if (!string.IsNullOrEmpty(DisplayMessage))
 {
-    var statusMessageClass = DisplayMessage.StartsWith("Error") ? "danger" : "success";
-    <div class="alert alert-@statusMessageClass" role="alert">
-        @DisplayMessage
-    </div>
+    var (kind, text) = Classify(DisplayMessage);
+    <div class="status-message"><Notice Kind="@kind" Message="@text" /></div>
 }
 
 @code {
+    /// <summary>エラーとして表示するメッセージの先頭に付ける目印</summary>
+    public const string ErrorPrefix = "エラー:";
+
+    /// <summary>案内（青）として表示するメッセージの先頭に付ける目印</summary>
+    public const string InfoPrefix = "お知らせ:";
+
     private string? messageFromCookie;
 
     [Parameter]
@@ -25,5 +33,23 @@
         {
             HttpContext.Response.Cookies.Delete(IdentityRedirectManager.StatusCookieName);
         }
+    }
+
+    private static (string Kind, string Text) Classify(string message)
+    {
+        if (message.StartsWith(ErrorPrefix, StringComparison.Ordinal))
+        {
+            return ("error", message[ErrorPrefix.Length..].Trim());
+        }
+        if (message.StartsWith(InfoPrefix, StringComparison.Ordinal))
+        {
+            return ("info", message[InfoPrefix.Length..].Trim());
+        }
+        // テンプレート由来の英語メッセージ（"Error: ..."）が残っていてもエラーとして扱う
+        if (message.StartsWith("Error", StringComparison.Ordinal))
+        {
+            return ("error", message);
+        }
+        return ("success", message);
     }
 }
