@@ -1,0 +1,116 @@
+@page "/review"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CurrentUser Me
+@inject StudySessionService Sessions
+@inject DailyRecordService Records
+@inject TimeProvider Time
+@inject IJSRuntime JS
+
+<PageTitle>週の振り返り - Pulse &amp; Mind Study</PageTitle>
+
+<div class="page-head">
+    <div>
+        <h1>週の振り返り</h1>
+        <p>1週間を1枚の画像にまとめます。保存して見返したり、友だちと共有したりできます。</p>
+    </div>
+</div>
+
+@if (review is null)
+{
+    <div class="empty">集計しています…</div>
+    return;
+}
+
+<div class="review-layout">
+    <div class="review-preview">
+        <ReviewCard Data="review" ShowSleep="showSleep" />
+    </div>
+
+    <aside class="review-side">
+        <section class="card-pm">
+            <div class="week-nav">
+                <button class="btn-pm icon" aria-label="前の週" @onclick="() => Move(-1)"><Icon Name="chevron-left" /></button>
+                <div>
+                    <strong>@(offset == 0 ? "今週" : offset == -1 ? "先週" : $"{-offset}週間前")</strong>
+                    <span class="small faint">@Format.Day(review.WeekStart)〜</span>
+                </div>
+                <button class="btn-pm icon" aria-label="次の週" disabled="@(offset >= 0)" @onclick="() => Move(1)"><Icon Name="chevron-right" /></button>
+            </div>
+
+            <label class="toggle-row">
+                <span>
+                    <strong>睡眠の平均を載せる</strong>
+                    <span class="small faint">健康に関わる情報なので、最初はオフにしています</span>
+                </span>
+                <input type="checkbox" role="switch" @bind="showSleep" disabled="@(review.AverageSleepHours is null)" />
+            </label>
+
+            <button class="btn-pm primary lg block" @onclick="Save" disabled="@saving"><Icon Name="share" /> 画像を保存・共有</button>
+            @if (message is not null)
+            {
+                <p class="small faint" style="margin:10px 0 0;text-align:center">@message</p>
+            }
+        </section>
+        <p class="small faint" style="margin:12px 4px 0">画像はこの端末の中で作られ、サーバーには送られません。心拍や気分、メモは載りません。</p>
+    </aside>
+</div>
+
+@code {
+    private UserProfile? profile;
+    private WeeklyReview? review;
+    private int offset;
+    private bool showSleep, saving;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = await Me.GetAsync();
+        await Load();
+    }
+
+    private async Task Move(int delta)
+    {
+        offset = Math.Min(0, offset + delta);
+        message = null;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (profile is null) return;
+        var today = TimeZones.LocalDate(Time.GetUtcNow().UtcDateTime, profile.Zone);
+        var monday = today.AddDays(-(((int)today.DayOfWeek + 6) % 7)).AddDays(7 * offset);
+        var sunday = monday.AddDays(6);
+
+        var days = await Sessions.DailyMinutesAsync(profile.UserId, monday.AddDays(-60), sunday > today ? today : sunday, profile.Zone);
+        double[] week = Enumerable.Range(0, 7).Select(i => days.GetValueOrDefault(monday.AddDays(i))).ToArray();
+        double previous = Enumerable.Range(1, 7).Sum(i => days.GetValueOrDefault(monday.AddDays(-i)));
+        var end = sunday > today ? today : sunday;
+
+        var (fromUtc, toUtc) = TimeZones.LocalRangeUtc(monday, sunday, profile.Zone);
+        var subjects = await Sessions.MinutesBySubjectAsync(profile.UserId, fromUtc, toUtc);
+
+        var records = await Records.ListAsync(profile.UserId, monday, sunday);
+        var sleeps = records.Where(r => r.SleepHours is not null).Select(r => r.SleepHours!.Value).ToList();
+
+        review = new WeeklyReview(monday, week, previous, subjects, week.Count(m => m >= 1), StudyTime.Streak(days, end),
+            sleeps.Count == 0 ? null : sleeps.Average(), profile.DailyGoalMinutes);
+        if (review.AverageSleepHours is null) showSleep = false;
+    }
+
+    private async Task Save()
+    {
+        if (review is null) return;
+        saving = true;
+        string result = await JS.InvokeAsync<string>("pulseMind.saveSvgAsPng", "review-card", $"PulseMind-{review.WeekStart:yyyyMMdd}.png", 1080, 1350);
+        message = result switch
+        {
+            "downloaded" => "画像を保存しました。",
+            "shared" => "共有しました。",
+            "cancelled" => null,
+            _ => "画像を作れませんでした。別のブラウザでお試しください。",
+        };
+        saving = false;
+    }
+}

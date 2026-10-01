@@ -1,0 +1,39 @@
+@* 科目ごとの学習時間の内訳。1本の帯と一覧で見せる *@
+@if (Items.Count == 0)
+{
+    <div class="empty">この期間の学習はまだありません。</div>
+}
+else
+{
+    <div class="breakdown-bar" role="img" aria-label="@AriaText">
+        @foreach (var (subject, minutes) in Items)
+        {
+            <span style="flex:@F(minutes);--c:@SubjectColors.For(subject)" title="@($"{SubjectColors.Label(subject)} {Format.Minutes(minutes)}")"></span>
+        }
+    </div>
+    <ul class="list breakdown-list">
+        @foreach (var (subject, minutes) in Items.Take(MaxRows))
+        {
+            <li>
+                <i class="dot" style="--c:@SubjectColors.For(subject)"></i>
+                <span class="grow">@SubjectColors.Label(subject)</span>
+                <span class="num">@Format.Minutes(minutes)</span>
+                <span class="faint num pct">@Percent(minutes)%</span>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<(string Subject, double Minutes)> Items { get; set; } = [];
+
+    [Parameter] public int MaxRows { get; set; } = 6;
+
+    private double Total => Items.Sum(i => i.Minutes);
+
+    private int Percent(double minutes) => Total <= 0 ? 0 : (int)Math.Round(minutes * 100 / Total);
+
+    private string AriaText => string.Join("、", Items.Select(i => $"{SubjectColors.Label(i.Subject)} {Percent(i.Minutes)}%"));
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

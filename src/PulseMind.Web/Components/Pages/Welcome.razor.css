@@ -1,0 +1,19 @@
+.welcome { max-width: 600px; margin: 0 auto; padding-top: 12px; display: flex; flex-direction: column; gap: 16px; }
+.welcome ::deep .welcome-mark { width: 56px; height: 56px; margin-bottom: 6px; }
+.welcome h1 { font-size: 2.5rem; margin: 0; }
+.welcome > p { margin: -8px 0 6px; font-size: 1rem; }
+.welcome-step h2 { font-size: 1.0625rem; margin-bottom: 14px; }
+
+.goal-picks { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.goal-picks button {
+    display: flex; flex-direction: column; align-items: center; padding: 12px 4px; border-radius: 16px; border: 0; cursor: pointer;
+    background: var(--pm-fill); color: var(--pm-text); font: inherit; transition: background .15s, transform .12s;
+}
+.goal-picks button:active { transform: scale(.96); }
+.goal-picks .num { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
+.goal-picks small { font-size: .6875rem; color: var(--pm-text-3); font-weight: 600; }
+.goal-picks button.selected { background: var(--pm-primary); color: var(--pm-on-primary); }
+.goal-picks button.selected small { color: inherit; opacity: .8; }
+
+.welcome-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+@media (max-width: 600px) { .goal-picks { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

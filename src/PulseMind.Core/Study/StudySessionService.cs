@@ -171,6 +171,21 @@ public sealed class StudySessionService(IDbContextFactory<PulseMindDbContext> db
         return minutes;
     }
 
+    /// <summary>期間 [fromUtc, toUtc) の、科目ごとの学習時間（分、多い順）。期間をはみ出した部分は数えない。</summary>
+    public async Task<IReadOnlyList<(string Subject, double Minutes)>> MinutesBySubjectAsync(
+        string userId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        var now = UtcNow;
+        var sessions = await ListAsync(userId, fromUtc, toUtc, cancellationToken);
+        return sessions
+            .Select(s => (s.Subject, Span: StudyTime.Clip(s.StartedAtUtc, s.EndedAtUtc ?? Min(now, s.StartedAtUtc + MaxSessionLength), fromUtc, toUtc)))
+            .Where(x => x.Span is not null)
+            .GroupBy(x => x.Subject, StringComparer.Ordinal)
+            .Select(g => (Subject: g.Key, Minutes: g.Sum(x => (x.Span!.Value.EndUtc - x.Span.Value.StartUtc).TotalMinutes)))
+            .OrderByDescending(x => x.Minutes)
+            .ToList();
+    }
+
     /// <summary>最近使った科目（新しい順、重複なし）。入力の候補として出す。</summary>
     public async Task<IReadOnlyList<string>> RecentSubjectsAsync(string userId, int take = 6, CancellationToken cancellationToken = default)
     {

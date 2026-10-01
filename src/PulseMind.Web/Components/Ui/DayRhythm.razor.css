@@ -1,0 +1,32 @@
+.rhythm { position: relative; padding-bottom: 20px; }
+
+.rhythm-track {
+    position: relative; height: 108px; border-radius: 16px; overflow: hidden;
+    background: var(--pm-fill);
+}
+
+/* 夜の時間帯（0〜6時、22〜24時）は少し暗くして、1日の流れが一目でわかるようにする */
+.night { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--pm-sleep) 9%, transparent); }
+.hour { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--pm-line); }
+
+.pulse-line { position: absolute; left: 0; right: 0; top: 12px; height: 44px; width: 100%; overflow: visible; }
+.pulse-line path { fill: none; stroke: var(--pm-pulse); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
+
+.lane { position: absolute; left: 0; right: 0; bottom: 12px; height: 30px; }
+.block {
+    position: absolute; top: 0; bottom: 0; border-radius: 8px;
+    background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+}
+.block.running { background: repeating-linear-gradient(-45deg, var(--c) 0 6px, color-mix(in srgb, var(--c) 70%, white) 6px 12px); animation: rhythm-flow 1.2s linear infinite; background-size: 17px 17px; }
+@keyframes rhythm-flow { to { background-position: 17px 0; } }
+
+.now { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--pm-text); }
+.now span {
+    position: absolute; top: 6px; left: 4px; font-size: .6875rem; font-weight: 700; color: var(--pm-text);
+    background: var(--pm-surface); padding: 0 5px; border-radius: 6px;
+}
+
+.rhythm-hours { position: absolute; left: 0; right: 0; bottom: 0; height: 16px; }
+.rhythm-hours span { position: absolute; top: 3px; transform: translateX(-50%); font-size: .6875rem; color: var(--pm-text-3); font-variant-numeric: tabular-nums; }
+.rhythm-hours span:first-child { transform: none; }
+.rhythm-hours span:last-child { transform: translateX(-100%); }

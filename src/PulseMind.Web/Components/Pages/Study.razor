@@ -12,6 +12,7 @@
         <h1>学習の記録</h1>
         <p>タイマーで計るか、あとから時間を入力して記録します。</p>
     </div>
+    <a class="btn-pm primary" href="focus"><Icon Name="target" /> 集中モード</a>
 </div>
 
 @if (profile is null)
@@ -20,14 +21,22 @@
     return;
 }
 
-<div class="grid grid-2">
-    <section class="card-pm">
-        <header><h2 class="card-title-icon"><Icon Name="timer" /> タイマー</h2></header>
+<div class="grid grid-12">
+    <section class="card-pm w-12 accent-study">
+        <header>
+            <h2 class="card-title-icon accent-title"><Icon Name="calendar" /> この1年</h2>
+            <span class="faint small">合計 <strong class="num">@Math.Round(yearMinutes / 60)</strong> 時間・学習した日 <strong class="num">@yearDays</strong> 日・最長 <strong class="num">@longestStreak</strong> 日連続</span>
+        </header>
+        <YearCalendar Days="year" Today="today" GoalMinutes="profile.DailyGoalMinutes" />
+    </section>
+
+    <section class="card-pm w-5 accent-study">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="timer" /> タイマー</h2></header>
         <StudyTimer Profile="profile" OnChanged="Reload" />
     </section>
 
-    <section class="card-pm">
-        <header><h2 class="card-title-icon"><Icon Name="edit" /> あとから入力</h2></header>
+    <section class="card-pm w-7 accent-study">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="edit" /> あとから入力</h2></header>
         <div class="stack">
             <div class="grid grid-3" style="gap:10px">
                 <div class="field">
@@ -43,21 +52,23 @@
                     <input id="m-end" class="input-pm" type="time" @bind="manualEnd" />
                 </div>
             </div>
-            <p class="hint faint small" style="margin:-4px 0 0">終了が開始より前の時刻なら、翌日の時刻として扱います（例: 23:00〜1:00）。</p>
-            <div class="field">
-                <label for="m-subject">科目</label>
-                <input id="m-subject" class="input-pm" maxlength="@StudySession.SubjectMaxLength" placeholder="例: 英語長文" @bind="manualSubject" />
+            <p class="faint small" style="margin:-6px 0 0">終了が開始より前の時刻なら、翌日の時刻として扱います（例: 23:00〜1:00）。</p>
+            <div class="grid grid-2" style="gap:10px">
+                <div class="field">
+                    <label for="m-subject">科目</label>
+                    <input id="m-subject" class="input-pm" maxlength="@StudySession.SubjectMaxLength" placeholder="例: 英語長文" @bind="manualSubject" />
+                </div>
+                <div class="field">
+                    <label for="m-note">メモ（任意）</label>
+                    <input id="m-note" class="input-pm" maxlength="@StudySession.NoteMaxLength" @bind="manualNote" />
+                </div>
             </div>
             <div class="field">
                 <span class="field-label">集中度（任意）</span>
                 <ScalePicker Kind="focus" Label="集中度" @bind-Value="manualFocus" />
             </div>
-            <div class="field">
-                <label for="m-note">メモ（任意）</label>
-                <input id="m-note" class="input-pm" maxlength="@StudySession.NoteMaxLength" @bind="manualNote" />
-            </div>
             <div class="row-pm">
-                <button class="btn-pm primary" @onclick="AddManual" disabled="@busy"><Icon Name="plus" /> 記録する</button>
+                <button class="btn-pm primary" @onclick="AddManual" disabled="@busy">記録する</button>
                 @if (!string.IsNullOrEmpty(ManualPreview))
                 {
                     <span class="faint small">@ManualPreview</span>
@@ -68,17 +79,16 @@
         </div>
     </section>
 
-    <section class="card-pm span-2">
+    <section class="card-pm w-5 accent-study">
         <header>
-            <h2 class="card-title-icon"><Icon Name="chart" /> 直近14日間</h2>
-            <span class="faint small">合計 @Format.Minutes(chart.Sum(i => i.Value)) ・ 1日平均 @Format.Minutes(chart.Count == 0 ? 0 : chart.Average(i => i.Value))</span>
+            <h2 class="card-title-icon accent-title"><Icon Name="chart" /> 科目の内訳</h2>
+            <span class="faint small">直近30日</span>
         </header>
-        <BarChart Items="chart" Goal="profile.DailyGoalMinutes" GoalLabel="@($"目標 {Format.Minutes(profile.DailyGoalMinutes)}")"
-                  ValueText="Format.MinutesShort" AriaLabel="直近14日間の学習時間" />
+        <SubjectBreakdown Items="subjects" />
     </section>
 
-    <section class="card-pm span-2">
-        <header><h2 class="card-title-icon"><Icon Name="study" /> 記録一覧（直近14日間）</h2></header>
+    <section class="card-pm w-7 accent-study">
+        <header><h2 class="card-title-icon accent-title"><Icon Name="study" /> 記録（直近7日間）</h2></header>
         @if (groups.Count == 0)
         {
             <div class="empty"><Icon Name="study" />まだ記録がありません。タイマーで最初の学習を記録しましょう。</div>
@@ -87,18 +97,19 @@
         {
             @foreach (var group in groups)
             {
-                <div class="list-day spread"><span>@Format.Day(group.Key)</span><span>@Format.Minutes(group.Sum(s => s.Minutes))</span></div>
+                <div class="list-day"><span>@Format.Day(group.Key)</span><span class="num">@Format.Minutes(group.Sum(s => s.Minutes))</span></div>
                 <ul class="list">
                     @foreach (var s in group)
                     {
                         <li>
+                            <i class="dot" style="--c:@SubjectColors.For(s.Session.Subject)"></i>
                             <div class="grow">
-                                <div class="title">@(string.IsNullOrEmpty(s.Session.Subject) ? "科目なし" : s.Session.Subject)</div>
+                                <div class="title">@SubjectColors.Label(s.Session.Subject)</div>
                                 <div class="meta">
-                                    @Format.Time(s.StartLocal) 〜 @(s.Session.IsRunning ? "計測中" : Format.Time(s.EndLocal))
+                                    @Format.Time(s.StartLocal)〜@(s.Session.IsRunning ? "計測中" : Format.Time(s.EndLocal))
                                     @if (!string.IsNullOrEmpty(s.Session.Note))
                                     {
-                                        <span> ・ @s.Session.Note</span>
+                                        <span>　@s.Session.Note</span>
                                     }
                                 </div>
                             </div>
@@ -106,10 +117,10 @@
                             {
                                 <span class="tag primary" title="集中度">集中 @f</span>
                             }
-                            <span class="num" style="min-width:5.5em;text-align:right">@Format.Minutes(s.Minutes)</span>
+                            <span class="num" style="min-width:5em;text-align:right">@Format.Minutes(s.Minutes)</span>
                             @if (!s.Session.IsRunning)
                             {
-                                <button class="btn-pm icon ghost" aria-label="この記録を削除" title="削除" @onclick="() => deleting = s.Session"><Icon Name="trash" /></button>
+                                <button class="btn-pm icon" aria-label="この記録を削除" title="削除" @onclick="() => deleting = s.Session"><Icon Name="trash" /></button>
                             }
                         </li>
                     }
@@ -129,7 +140,10 @@
 
     private UserProfile? profile;
     private DateOnly today;
-    private IReadOnlyList<BarItem> chart = [];
+    private IReadOnlyDictionary<DateOnly, double> year = new Dictionary<DateOnly, double>();
+    private double yearMinutes;
+    private int yearDays, longestStreak;
+    private IReadOnlyList<(string Subject, double Minutes)> subjects = [];
     private List<IGrouping<DateOnly, Row>> groups = [];
     private StudySession? deleting;
     private bool busy;
@@ -150,12 +164,16 @@
     private async Task Reload()
     {
         if (profile is null) return;
-        var from = today.AddDays(-13);
-        var days = await Sessions.DailyMinutesAsync(profile.UserId, from, today, profile.Zone);
-        chart = days.Select(d => new BarItem(Format.ShortDay(d.Key), d.Value, $"{Format.Day(d.Key)} {Format.Minutes(d.Value)}",
-            Highlight: d.Key == today, SubLabel: Format.Weekday(d.Key))).ToList();
+        var days = await Sessions.DailyMinutesAsync(profile.UserId, today.AddDays(-370), today, profile.Zone);
+        year = days;
+        yearMinutes = days.Where(d => d.Key > today.AddDays(-365)).Sum(d => d.Value);
+        yearDays = days.Count(d => d.Key > today.AddDays(-365) && d.Value >= 1);
+        longestStreak = LongestStreak(days);
 
-        var (fromUtc, toUtc) = TimeZones.LocalRangeUtc(from, today, profile.Zone);
+        var (monthFrom, monthTo) = TimeZones.LocalRangeUtc(today.AddDays(-29), today, profile.Zone);
+        subjects = await Sessions.MinutesBySubjectAsync(profile.UserId, monthFrom, monthTo);
+
+        var (fromUtc, toUtc) = TimeZones.LocalRangeUtc(today.AddDays(-6), today, profile.Zone);
         var now = Time.GetUtcNow().UtcDateTime;
         var sessions = await Sessions.ListAsync(profile.UserId, fromUtc, toUtc);
         groups = sessions
@@ -167,6 +185,17 @@
             .GroupBy(r => DateOnly.FromDateTime(r.StartLocal))
             .OrderByDescending(g => g.Key)
             .ToList();
+    }
+
+    private static int LongestStreak(IReadOnlyDictionary<DateOnly, double> days)
+    {
+        int best = 0, current = 0;
+        foreach (var (_, minutes) in days.OrderBy(d => d.Key))
+        {
+            current = minutes >= 1 ? current + 1 : 0;
+            best = Math.Max(best, current);
+        }
+        return best;
     }
 
     /// <summary>入力中の時間帯から、記録される長さを先に見せる</summary>

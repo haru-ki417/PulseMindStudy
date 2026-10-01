@@ -21,17 +21,17 @@
 }
 
 <div class="grid grid-3" style="margin-bottom:18px">
-    <div class="card-pm metric"><span class="label"><Icon Name="study" /> 学習した日</span><span class="value num">@report.DaysWithStudy<small>日</small></span><span class="sub">@Format.Day(report.From) 〜 昨日</span></div>
-    <div class="card-pm metric"><span class="label"><Icon Name="moon" /> 睡眠を記録した日</span><span class="value num">@report.DaysWithSleep<small>日</small></span></div>
-    <div class="card-pm metric"><span class="label"><Icon Name="target" /> 分析に必要な日数</span><span class="value num">@InsightReport.MinimumDays<small>日以上</small></span><span class="sub">両方の記録がそろった日</span></div>
+    <div class="card-pm metric accent-study"><span class="label"><Icon Name="study" /> 学習した日</span><span class="value num">@report.DaysWithStudy<small>日</small></span><span class="sub">@Format.Day(report.From) 〜 昨日</span></div>
+    <div class="card-pm metric accent-sleep"><span class="label"><Icon Name="moon" /> 睡眠を記録した日</span><span class="value num">@report.DaysWithSleep<small>日</small></span></div>
+    <div class="card-pm metric accent-mood"><span class="label"><Icon Name="target" /> 分析に必要な日数</span><span class="value num">@InsightReport.MinimumDays<small>日以上</small></span><span class="sub">両方の記録がそろった日</span></div>
 </div>
 
 <div class="grid grid-2">
     @foreach (var relation in report.Relations)
     {
-        <section class="card-pm">
+        <section class="card-pm accent-study">
             <header>
-                <h2>@relation.Title</h2>
+                <h2 class="accent-title">@relation.Title</h2>
                 <span class="faint small">@relation.Points.Count 日分</span>
             </header>
 

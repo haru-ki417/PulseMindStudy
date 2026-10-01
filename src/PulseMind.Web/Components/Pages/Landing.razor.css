@@ -1,0 +1,57 @@
+.lp-hero { text-align: center; padding: 64px 0 40px; max-width: 760px; margin: 0 auto; }
+.lp-hero h1 { text-wrap: balance; font-size: clamp(2.25rem, 6vw, 4rem); line-height: 1.1; letter-spacing: -.04em; margin-bottom: 20px; }
+.lp-hero .lead { font-size: clamp(1rem, 2vw, 1.25rem); color: var(--pm-text-2); max-width: 32em; margin: 0 auto 30px; }
+.lp-cta { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+.lp-shot { max-width: 880px; margin: 8px auto 0; padding: 26px 28px 22px; box-shadow: 0 30px 80px rgba(16, 18, 27, .12); }
+.lp-today { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: -4px 0 16px; flex-wrap: wrap; }
+.lp-today .big-figure { font-size: 3.25rem; }
+.lp-today .big-figure small { font-family: var(--pm-font); font-size: 1.0625rem; font-weight: 600; color: var(--pm-text-3); margin: 0 6px 0 3px; letter-spacing: 0; }
+.lp-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: .8125rem; font-weight: 500; }
+.lp-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lp-line { display: inline-block; width: 14px; height: 2px; border-radius: 2px; background: var(--pm-pulse); }
+
+/* 集中モードの紹介。ページの中でここだけを暗くし、光を動かす */
+.lp-focus {
+    position: relative; overflow: hidden; margin: 72px 0 0; border-radius: 36px; min-height: 460px;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center;
+    background: radial-gradient(90% 120% at 25% 50%, #2a1f5c 0%, #07081a 60%); color: #eef0ff;
+}
+.lp-orb { position: relative; height: 100%; min-height: 420px; display: grid; place-items: center; }
+.lp-orb .core, .lp-orb .halo { position: absolute; border-radius: 50%; }
+.lp-orb .core { width: 260px; height: 260px; background: radial-gradient(circle at 42% 38%, #c8ceff 0%, #6d7bff 38%, #2a2f7a 72%, transparent 73%); animation: lp-beat .83s cubic-bezier(.3, 0, .2, 1) infinite; }
+.lp-orb .halo { width: 440px; height: 440px; background: radial-gradient(circle, rgba(109, 123, 255, .38) 0%, transparent 62%); animation: lp-halo .83s ease-out infinite; }
+@keyframes lp-beat { 0% { transform: scale(.94); } 14% { transform: scale(1.03); } 30% { transform: scale(.97); } 44% { transform: scale(1); } 100% { transform: scale(.94); } }
+@keyframes lp-halo { 0% { transform: scale(.9); opacity: .35; } 18% { transform: scale(1.04); opacity: .8; } 100% { transform: scale(.9); opacity: .35; } }
+.lp-focus-text { padding: 48px 56px 48px 0; }
+.lp-focus-text h2 { color: #fff; font-size: clamp(1.75rem, 3.4vw, 2.5rem); letter-spacing: -.03em; line-height: 1.2; margin-bottom: 16px; }
+.lp-focus-text p { color: rgba(238, 240, 255, .7); font-size: 1rem; max-width: 30em; }
+.lp-focus-text .lp-time { font-size: 3.5rem; font-weight: 200; letter-spacing: -.04em; color: #fff !important; margin: 18px 0 0; }
+
+.lp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.lp-grid h3 { font-size: 1.0625rem; margin-bottom: 8px; }
+.lp-grid p { margin: 0; }
+.lp-cal { display: grid; grid-template-columns: repeat(21, 1fr); gap: 3px; margin-top: 16px; }
+.lp-cal i { aspect-ratio: 1; border-radius: 3px; background: var(--pm-fill); }
+.lp-cal .l1 { background: color-mix(in srgb, var(--pm-primary) 25%, var(--pm-surface)); }
+.lp-cal .l2 { background: color-mix(in srgb, var(--pm-primary) 48%, var(--pm-surface)); }
+.lp-cal .l3 { background: color-mix(in srgb, var(--pm-primary) 74%, var(--pm-surface)); }
+.lp-cal .l4 { background: var(--pm-primary); }
+.lp-count { margin: 14px 0 0 !important; font-size: 1.125rem; font-weight: 600; color: var(--pm-text-2); }
+.lp-count .num { font-size: 3rem; font-weight: 700; color: var(--pm-text); letter-spacing: -.03em; }
+
+.lp-privacy { display: flex; gap: 12px; align-items: flex-start; max-width: 760px; margin: 56px auto 0; color: var(--pm-text-2); font-size: .875rem; }
+.lp-privacy ::deep svg { width: 22px; height: 22px; flex: none; color: var(--pm-steps); margin-top: 2px; }
+.lp-end { text-align: center; padding: 64px 0 16px; }
+.lp-end h2 { font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.02em; margin-bottom: 22px; }
+
+@media (max-width: 900px) {
+    .lp-hero { padding: 28px 0 28px; }
+    .lp-shot { padding: 18px; }
+    .lp-focus { grid-template-columns: minmax(0, 1fr); margin-top: 40px; border-radius: 28px; }
+    .lp-orb { min-height: 300px; }
+    .lp-orb .core { width: 180px; height: 180px; }
+    .lp-orb .halo { width: 300px; height: 300px; }
+    .lp-focus-text { padding: 0 24px 36px; }
+    .lp-grid { grid-template-columns: minmax(0, 1fr); }
+}

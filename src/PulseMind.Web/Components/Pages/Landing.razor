@@ -1,62 +1,101 @@
-@* 紹介ページ（ログインしていない人向け） *@
-<section class="hero">
-    <div>
-        <span class="tag primary" style="margin-bottom:14px">受験生・大学生のための学習記録</span>
-        <h1>勉強と体調を、<br /><em>ひとつのグラフ</em>で。</h1>
-        <p class="lead">
-            学習時間に、睡眠・気分・心拍をいっしょに記録。
-            「よく眠れた日は集中できているか」を、自分のデータで確かめられます。
-        </p>
-        <div class="row-pm">
-            <a class="btn-pm primary lg" href="Account/Register">無料で始める</a>
-            <a class="btn-pm lg" href="Account/Login">ログイン</a>
-        </div>
-    </div>
-    <div class="hero-art" aria-hidden="true">
-        <div class="spread" style="margin-bottom:10px">
-            <strong>この1週間</strong>
-            <span class="tag pulse"><Icon Name="heart" Class="beat" /> 平均 72 bpm</span>
-        </div>
-        <BarChart Items="sample" Goal="180" GoalLabel="目標 3時間" ValueText="Format.MinutesShort" Height="190" />
-        <div class="grid grid-3" style="margin-top:10px;gap:10px">
-            <div class="metric"><span class="label"><Icon Name="study" /> 学習</span><span class="value num">17.6<small>時間</small></span></div>
-            <div class="metric"><span class="label"><Icon Name="moon" /> 睡眠</span><span class="value num">6.8<small>時間</small></span></div>
-            <div class="metric"><span class="label"><Icon Name="flame" /> 連続</span><span class="value num">12<small>日</small></span></div>
-        </div>
-        <p class="faint small" style="margin:10px 0 0">※ 表示は見本です</p>
+@* 紹介ページ（ログインしていない人向け）。見せるものは2つだけ: 1日のリズムと、心拍に合わせて脈打つ集中モード *@
+<section class="lp-hero">
+    <h1>勉強と体調を、<br />ひとつのリズムで。</h1>
+    <p class="lead">学習時間に、睡眠・気分・心拍を重ねて記録する、受験生と大学生のためのアプリ。</p>
+    <div class="lp-cta">
+        <a class="btn-pm primary lg" href="Account/Register">無料ではじめる</a>
+        <a class="btn-pm ghost lg" href="Account/Login">ログイン</a>
     </div>
 </section>
 
-<section class="features">
-    <div class="card-pm feature">
-        <div class="icon-badge primary"><Icon Name="timer" /></div>
-        <h3>ワンタップの学習タイマー</h3>
-        <p class="muted small">科目を選んで始めるだけ。終わったら集中度とメモを残せます。日付をまたいだ勉強も正しく集計します。</p>
+<section class="lp-shot card-pm accent-study" aria-label="ホーム画面の見本">
+    <header>
+        <h2 class="card-title-icon accent-title"><Icon Name="study" /> 今日</h2>
+        <span class="faint small">表示は見本です</span>
+    </header>
+    <div class="lp-today">
+        <span class="big-figure">2<small>時間</small>35<small>分</small></span>
+        <span class="small muted">目標 3時間 の <strong class="num">86%</strong></span>
     </div>
-    <div class="card-pm feature">
-        <div class="icon-badge sleep"><Icon Name="moon" /></div>
-        <h3>睡眠・歩数・気分</h3>
-        <p class="muted small">1日1回、数秒で入力。iPhone の「ヘルスケア」から歩数や心拍を取り込むこともできます。</p>
-    </div>
-    <div class="card-pm feature">
-        <div class="icon-badge pulse"><Icon Name="pulse" /></div>
-        <h3>心拍センサーにも対応</h3>
-        <p class="muted small">Arduino の脈拍センサーをつなげば、勉強中の心拍を自動で記録。自作 IoT の入口にもなります。</p>
+    <DayRhythm Day="sampleDay" Blocks="sampleBlocks" Heart="sampleHeart" NowLocal="sampleNow" AriaLabel="1日のリズムの見本" />
+    <div class="lp-legend">
+        @foreach (var s in new[] { "数学", "英語", "化学" })
+        {
+            <span><i class="dot" style="--c:@SubjectColors.For(s)"></i>@s</span>
+        }
+        <span><i class="lp-line"></i>心拍</span>
     </div>
 </section>
 
-<div class="notice" style="margin-top:22px">
+<section class="lp-focus" aria-label="集中モード">
+    <div class="lp-orb" aria-hidden="true"><div class="halo"></div><div class="core"></div></div>
+    <div class="lp-focus-text">
+        <h2>心拍に合わせて、<br />光が脈打つ。</h2>
+        <p>集中モードは、画面を静かな夜の色にして、時計とひとつの光だけを残します。心拍センサーをつなぐと光があなたの鼓動に合わせて、つないでいないときはゆっくりした呼吸のペースで動きます。</p>
+        <p class="lp-time num">00:42:17</p>
+    </div>
+</section>
+
+<section class="lp-grid">
+    <article class="card-pm accent-study">
+        <h3 class="card-title-icon accent-title"><Icon Name="calendar" /> 1年分のカレンダー</h3>
+        <p class="small muted">毎日の勉強を、目標に対する濃さで1マスずつ。続けてきた日々が一目でわかります。</p>
+        <div class="lp-cal" aria-hidden="true">
+            @for (int i = 0; i < 84; i++)
+            {
+                <i class="l@(Level(i))"></i>
+            }
+        </div>
+    </article>
+    <article class="card-pm accent-mood">
+        <h3 class="card-title-icon accent-title"><Icon Name="target" /> 試験までのカウントダウン</h3>
+        <p class="small muted">試験の日を決めると、残りの日数と「今のペースなら、あと何時間勉強できるか」を表示します。</p>
+        <p class="lp-count"><span class="num">107</span> 日</p>
+    </article>
+    <article class="card-pm accent-sleep">
+        <h3 class="card-title-icon accent-title"><Icon Name="insight" /> 言いすぎない分析</h3>
+        <p class="small muted">「よく眠った日は集中できているか」を、統計で確かめます。データが少ないうちは結論を出さず、相関と原因を区別して伝えます。</p>
+    </article>
+    <article class="card-pm accent-pulse">
+        <h3 class="card-title-icon accent-title"><Icon Name="pulse" /> センサーとヘルスケア</h3>
+        <p class="small muted">Arduino の脈拍センサー、iPhone・Apple Watch の「ヘルスケア」から、心拍・歩数・睡眠を取り込めます。</p>
+    </article>
+</section>
+
+<section class="lp-privacy">
     <Icon Name="shield" />
-    <div>
-        記録はあなただけが見られます。いつでもすべてのデータを書き出し・削除できます。
-        このアプリは医療機器ではなく、病気の診断や予防を目的としたものではありません。
-    </div>
-</div>
+    <p>
+        記録はあなただけが見られ、いつでもすべて書き出し・削除できます。
+        広告や AI の学習には使いません。このアプリは医療機器ではなく、病気の診断や予防を目的としたものではありません。
+    </p>
+</section>
+
+<section class="lp-end">
+    <h2>今日の勉強から、記録をはじめましょう。</h2>
+    <a class="btn-pm primary lg" href="Account/Register">無料ではじめる</a>
+</section>
 
 @code {
-    private static readonly IReadOnlyList<BarItem> sample =
+    private static readonly DateOnly sampleDay = new(2026, 10, 1);
+    private static readonly DateTime sampleNow = sampleDay.ToDateTime(new TimeOnly(21, 10));
+
+    private static readonly IReadOnlyList<RhythmBlock> sampleBlocks =
     [
-        new("月", 150, ""), new("火", 200, ""), new("水", 95, ""), new("木", 185, ""),
-        new("金", 130, ""), new("土", 240, ""), new("日", 55, "", Highlight: true),
+        new(sampleDay.ToDateTime(new TimeOnly(7, 0)), sampleDay.ToDateTime(new TimeOnly(7, 40)), "英語"),
+        new(sampleDay.ToDateTime(new TimeOnly(16, 50)), sampleDay.ToDateTime(new TimeOnly(18, 5)), "数学"),
+        new(sampleDay.ToDateTime(new TimeOnly(19, 30)), sampleDay.ToDateTime(new TimeOnly(20, 10)), "化学"),
+        new(sampleDay.ToDateTime(new TimeOnly(20, 20)), sampleDay.ToDateTime(new TimeOnly(21, 10)), "数学", Running: true),
     ];
+
+    private static readonly IReadOnlyList<HeartRatePoint> sampleHeart = Enumerable.Range(0, 260)
+        .Select(i =>
+        {
+            var t = sampleDay.ToDateTime(new TimeOnly(16, 50)).AddMinutes(i);
+            double bpm = 70 + 7 * Math.Sin(i / 18.0) + 3 * Math.Sin(i / 4.3);
+            return new HeartRatePoint(t, bpm, bpm - 3, bpm + 3);
+        })
+        .ToList();
+
+    /// <summary>見本のカレンダーの濃さ（決まった並びにして、表示のたびに変わらないようにする）</summary>
+    private static int Level(int i) => ((i * 7 + i / 5) % 11) switch { 0 or 1 => 0, 2 or 3 => 1, 4 or 5 or 6 => 2, 7 or 8 => 3, _ => 4 };
 }

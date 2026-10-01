@@ -1,0 +1,98 @@
+/* 集中モード。画面全体を夜の色にし、中央の光だけを動かす（このアプリでいちばん印象に残る場面） */
+.focus {
+    --f-bg: #05060d;
+    --f-text: #eef0ff;
+    --f-text-2: rgba(238, 240, 255, .62);
+    --f-text-3: rgba(238, 240, 255, .38);
+    --f-fill: rgba(255, 255, 255, .08);
+    --f-fill-strong: rgba(255, 255, 255, .16);
+    /* 小窓（ConfirmSheet）も暗い色で出す */
+    --pm-surface: #16171f; --pm-text: #eef0ff; --pm-text-2: rgba(238, 240, 255, .62); --pm-text-3: rgba(238, 240, 255, .4);
+    --pm-fill: rgba(255, 255, 255, .09); --pm-fill-strong: rgba(255, 255, 255, .16); --pm-line: rgba(255, 255, 255, .1);
+    --pm-primary: #8b95ff; --pm-primary-soft: rgba(139, 149, 255, .2); --pm-on-primary: #0b0d22;
+    color-scheme: dark;
+
+    position: fixed; inset: 0; overflow: hidden;
+    display: grid; grid-template-rows: auto 1fr auto;
+    background: radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--c) 20%, #0b0d1c) 0%, var(--f-bg) 62%);
+    color: var(--f-text);
+    transition: background 1.2s ease;
+}
+
+.focus-bar { display: flex; align-items: center; justify-content: space-between; padding: max(16px, env(safe-area-inset-top)) 20px 0; position: relative; z-index: 2; }
+.focus-btn { width: 42px; height: 42px; border-radius: 999px; display: grid; place-items: center; background: var(--f-fill); color: var(--f-text-2); border: 0; cursor: pointer; }
+.focus-btn:hover { background: var(--f-fill-strong); color: var(--f-text); }
+.focus-btn ::deep svg { width: 20px; height: 20px; }
+.focus-today { font-size: .875rem; color: var(--f-text-2); }
+.focus-today strong { color: var(--f-text); font-weight: 600; margin-left: 4px; }
+
+/* 中央の光。心拍があれば 1拍ごとに、無ければゆっくりした呼吸（10秒で1回）に合わせて大きさが変わる */
+.orb-stage { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.orb, .orb-halo { position: absolute; border-radius: 50%; }
+.orb {
+    width: min(52vmin, 420px); height: min(52vmin, 420px);
+    background: radial-gradient(circle at 42% 38%, color-mix(in srgb, var(--c) 35%, white) 0%, var(--c) 38%, color-mix(in srgb, var(--c) 40%, #05060d) 72%, transparent 73%);
+    filter: saturate(1.1);
+    opacity: .9;
+}
+.orb-halo {
+    width: min(80vmin, 680px); height: min(80vmin, 680px);
+    background: radial-gradient(circle, color-mix(in srgb, var(--c) 34%, transparent) 0%, transparent 62%);
+    filter: blur(8px);
+}
+.idle .orb { opacity: .28; animation: orb-breathe 10s ease-in-out infinite; }
+.idle .orb-halo { opacity: .4; animation: orb-breathe 10s ease-in-out infinite; }
+.running.breathing .orb, .running.breathing .orb-halo { animation: orb-breathe 10s ease-in-out infinite; }
+.running.beating .orb { animation: orb-beat var(--beat) cubic-bezier(.3, 0, .2, 1) infinite; }
+.running.beating .orb-halo { animation: halo-beat var(--beat) ease-out infinite; }
+
+/* 吸う 4秒・吐く 6秒 */
+@keyframes orb-breathe { 0% { transform: scale(.86); } 40% { transform: scale(1); } 100% { transform: scale(.86); } }
+/* 心拍: すばやく膨らみ、ゆっくり戻る */
+@keyframes orb-beat { 0% { transform: scale(.94); } 14% { transform: scale(1.03); } 30% { transform: scale(.97); } 44% { transform: scale(1); } 100% { transform: scale(.94); } }
+@keyframes halo-beat { 0% { transform: scale(.9); opacity: .35; } 18% { transform: scale(1.04); opacity: .75; } 100% { transform: scale(.9); opacity: .35; } }
+
+.focus-center { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 20px; gap: 14px; }
+.focus-subject { display: inline-flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 600; color: var(--f-text-2); }
+.focus-time { font-size: clamp(4rem, 15vw, 8.5rem); font-weight: 200; letter-spacing: -.04em; line-height: 1; text-shadow: 0 2px 30px rgba(0, 0, 0, .35); }
+.focus-signal { min-height: 1.6em; font-size: .9375rem; color: var(--f-text-2); }
+.focus-signal ::deep svg { width: 16px; height: 16px; color: #ff6b85; vertical-align: -2px; }
+.focus-signal strong { color: var(--f-text); }
+
+.breath { position: relative; display: inline-block; width: 12em; height: 1.6em; }
+.breath > span { position: absolute; inset: 0; animation: 10s ease-in-out infinite; }
+.breath .in { animation-name: breath-in; }
+.breath .out { animation-name: breath-out; }
+@keyframes breath-in { 0%, 38% { opacity: 1; } 42%, 96% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes breath-out { 0%, 38% { opacity: 0; } 42%, 96% { opacity: 1; } 100% { opacity: 0; } }
+
+.focus-title { font-size: clamp(1.75rem, 5vw, 2.5rem); font-weight: 700; color: var(--f-text); letter-spacing: -.02em; margin: 0; }
+.focus-input {
+    width: min(420px, 90vw); min-height: 54px; padding: 12px 20px; border-radius: 999px; border: 0; text-align: center;
+    background: var(--f-fill); color: var(--f-text); font: inherit; font-size: 1.125rem;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.focus-input::placeholder { color: var(--f-text-3); }
+.focus-input:focus { outline: 2px solid color-mix(in srgb, var(--c) 70%, white); outline-offset: 2px; }
+.focus-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 560px; }
+.focus-chips button {
+    display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; border: 0; cursor: pointer;
+    background: var(--f-fill); color: var(--f-text-2); font: inherit; font-size: .875rem; font-weight: 500;
+}
+.focus-chips button:hover { background: var(--f-fill-strong); color: var(--f-text); }
+.focus-chips button.selected { background: var(--f-text); color: #0b0d1c; }
+
+.focus-actions { margin-top: 10px; }
+.focus-main {
+    min-width: 220px; min-height: 58px; padding: 0 34px; border-radius: 999px; border: 0; cursor: pointer;
+    background: var(--f-text); color: #0b0d1c; font: inherit; font-size: 1.125rem; font-weight: 700;
+    transition: transform .15s var(--pm-ease), opacity .15s;
+}
+.focus-main:hover { opacity: .92; }
+.focus-main:active { transform: scale(.97); }
+.running .focus-main { background: var(--f-fill-strong); color: var(--f-text); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.focus-error { color: #ffb3c0; font-size: .875rem; margin: 0; }
+
+.focus-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 20px; padding: 0 20px max(18px, env(safe-area-inset-bottom)); font-size: .75rem; color: var(--f-text-3); position: relative; z-index: 1; }
+.focus-keys kbd { font: inherit; font-weight: 600; padding: 1px 7px; border-radius: 6px; background: var(--f-fill); color: var(--f-text-2); margin-right: 4px; }
+@media (hover: none) { .focus-keys span:not(:last-child) { display: none; } }

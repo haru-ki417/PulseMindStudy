@@ -1,0 +1,73 @@
+@* 1年分の学習カレンダー。1日を1マスにし、目標に対してどれだけ勉強したかを色の濃さで表す *@
+<div class="year">
+    <div class="year-scroll">
+        <div class="year-weeks">
+            @foreach (var week in weeks)
+            {
+                <div class="year-week">
+                    <span class="year-month">@week.MonthLabel</span>
+                    @foreach (var day in week.Days)
+                    {
+                        if (day is null)
+                        {
+                            <i class="cell empty"></i>
+                        }
+                        else
+                        {
+                            <i class="cell l@(Level(day.Value.Minutes)) @(day.Value.Date == Today ? "today" : "")"
+                               title="@($"{Format.Day(day.Value.Date)} {Format.Minutes(day.Value.Minutes)}")"></i>
+                        }
+                    }
+                </div>
+            }
+        </div>
+        <div class="year-days" aria-hidden="true"><span>月</span><span></span><span>水</span><span></span><span>金</span><span></span><span></span></div>
+    </div>
+    <div class="year-legend">
+        <span>目標に対して</span>
+        <i class="cell l0"></i><i class="cell l1"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell l4"></i>
+        <span>達成</span>
+    </div>
+</div>
+
+@code {
+    private sealed record Week(string? MonthLabel, (DateOnly Date, double Minutes)?[] Days);
+
+    /// <summary>日ごとの学習時間（分）。古い日から今日まで</summary>
+    [Parameter, EditorRequired] public IReadOnlyDictionary<DateOnly, double> Days { get; set; } = new Dictionary<DateOnly, double>();
+
+    [Parameter, EditorRequired] public DateOnly Today { get; set; }
+
+    [Parameter] public int GoalMinutes { get; set; } = 180;
+
+    private List<Week> weeks = [];
+
+    protected override void OnParametersSet()
+    {
+        // 月曜始まりの週に分ける。新しい週が先頭（右端）になるよう、新しい順に並べる（表示は右から左へ）
+        var start = Today.AddDays(-364);
+        start = start.AddDays(-(((int)start.DayOfWeek + 6) % 7));
+        weeks = [];
+        for (var weekStart = start; weekStart <= Today; weekStart = weekStart.AddDays(7))
+        {
+            var days = new (DateOnly, double)?[7];
+            string? month = null;
+            for (int i = 0; i < 7; i++)
+            {
+                var d = weekStart.AddDays(i);
+                if (d > Today) continue;
+                days[i] = (d, Days.TryGetValue(d, out double m) ? m : 0);
+                if (d.Day == 1) month = $"{d.Month}月";
+            }
+            weeks.Add(new Week(month, days));
+        }
+        weeks.Reverse();
+    }
+
+    private int Level(double minutes)
+    {
+        if (minutes < 1) return 0;
+        double ratio = minutes / Math.Max(GoalMinutes, 1);
+        return ratio < .25 ? 1 : ratio < .5 ? 2 : ratio < 1 ? 3 : 4;
+    }
+}

@@ -112,7 +112,8 @@
         else
         {
             await SignInManager.SignInAsync(user, isPersistent: false);
-            RedirectManager.RedirectTo(ReturnUrl);
+            // 登録したばかりなら、はじめての設定へ案内する
+            RedirectManager.RedirectTo(string.IsNullOrEmpty(ReturnUrl) || ReturnUrl == "/" ? "welcome" : ReturnUrl);
         }
     }
 

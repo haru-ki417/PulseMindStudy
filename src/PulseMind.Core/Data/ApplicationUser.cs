@@ -25,6 +25,16 @@ public class ApplicationUser : IdentityUser
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
+    /// <summary>目標にしている試験の名前（例: 大学入学共通テスト）。設定していなければ null。</summary>
+    [MaxLength(40)]
+    public string? ExamName { get; set; }
+
+    /// <summary>試験の日（利用者のタイムゾーンでの日付）</summary>
+    public DateOnly? ExamDate { get; set; }
+
+    /// <summary>はじめての設定（ニックネーム・目標）を済ませたか。済んでいなければ案内を出す。</summary>
+    public bool OnboardingCompleted { get; set; }
+
     /// <summary>同意した利用規約・プライバシーポリシーの版。規約を改定したら、再同意を求めるのに使う。</summary>
     [MaxLength(20)]
     public string? AcceptedTermsVersion { get; set; }
