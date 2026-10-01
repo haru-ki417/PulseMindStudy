@@ -1,0 +1,146 @@
+@page "/insights"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using PulseMind.Core.Insights
+@inject CurrentUser Me
+@inject InsightService Service
+
+<PageTitle>分析 - Pulse &amp; Mind Study</PageTitle>
+
+<div class="page-head">
+    <div>
+        <h1>分析</h1>
+        <p>直近60日の記録から、睡眠や気分と勉強の関係を調べます。</p>
+    </div>
+</div>
+
+@if (report is null)
+{
+    <div class="empty">集計しています…</div>
+    return;
+}
+
+<div class="grid grid-3" style="margin-bottom:18px">
+    <div class="card-pm metric"><span class="label"><Icon Name="study" /> 学習した日</span><span class="value num">@report.DaysWithStudy<small>日</small></span><span class="sub">@Format.Day(report.From) 〜 昨日</span></div>
+    <div class="card-pm metric"><span class="label"><Icon Name="moon" /> 睡眠を記録した日</span><span class="value num">@report.DaysWithSleep<small>日</small></span></div>
+    <div class="card-pm metric"><span class="label"><Icon Name="target" /> 分析に必要な日数</span><span class="value num">@InsightReport.MinimumDays<small>日以上</small></span><span class="sub">両方の記録がそろった日</span></div>
+</div>
+
+<div class="grid grid-2">
+    @foreach (var relation in report.Relations)
+    {
+        <section class="card-pm">
+            <header>
+                <h2>@relation.Title</h2>
+                <span class="faint small">@relation.Points.Count 日分</span>
+            </header>
+
+            @if (relation.Correlation is { } c)
+            {
+                var (kind, text) = Describe(relation, c);
+                <div class="verdict @kind">
+                    <Icon Name="@(kind == "" ? "info" : "insight")" />
+                    <div>@text</div>
+                </div>
+                <ScatterChart Points="relation.Points" XLabel="@Axis(relation.XLabel, relation.XUnit)" YLabel="@Axis(relation.YLabel, relation.YUnit)"
+                              Height="190" AriaLabel="@($"{relation.Title}の散布図")" />
+                <p class="faint small" style="margin:8px 0 0">
+                    順位相関 ρ = <span class="num">@c.R.ToString("0.00", CultureInfo.InvariantCulture)</span>
+                    （95% 信頼区間 <span class="num">@c.Low.ToString("0.00", CultureInfo.InvariantCulture)</span> 〜 <span class="num">@c.High.ToString("0.00", CultureInfo.InvariantCulture)</span>、@c.N 日）
+                </p>
+            }
+            else
+            {
+                int have = relation.Points.Count, need = InsightReport.MinimumDays;
+                <div class="verdict">
+                    <Icon Name="info" />
+                    <div>
+                        @if (have < need)
+                        {
+                            <span>あと <strong>@(need - have) 日</strong>分の記録で分析できます。</span>
+                        }
+                        else
+                        {
+                            <span>値のばらつきが小さいため、関係を計算できません。</span>
+                        }
+                        <div class="meter" style="margin-top:8px"><span style="width:@(Math.Min(100, have * 100 / need))%"></span></div>
+                    </div>
+                </div>
+                @if (relation.Points.Count >= 3)
+                {
+                    <ScatterChart Points="relation.Points" XLabel="@Axis(relation.XLabel, relation.XUnit)" YLabel="@Axis(relation.YLabel, relation.YUnit)" Height="170" />
+                }
+            }
+        </section>
+    }
+
+    <section class="card-pm">
+        <header><h2 class="card-title-icon"><Icon Name="timer" /> 時間帯ごとの集中度</h2></header>
+        @if (report.TimeOfDay.Count == 0)
+        {
+            <div class="empty">集中度を付けた学習がまだありません。タイマーを止めるときに集中度を選ぶと、ここに表示されます。</div>
+        }
+        else
+        {
+            var best = report.TimeOfDay.Where(t => t.Sessions >= InsightService.MinimumSessionsPerSlot).MaxBy(t => t.AverageFocus);
+            @if (best is not null)
+            {
+                <div class="verdict positive" style="margin-bottom:12px">
+                    <Icon Name="insight" />
+                    <div><strong>@best.Label</strong>の学習で、集中度がいちばん高くなっています（平均 @best.AverageFocus.ToString("0.0", CultureInfo.InvariantCulture)）。</div>
+                </div>
+            }
+            <ul class="list">
+                @foreach (var t in report.TimeOfDay.OrderBy(t => (t.StartHour + 19) % 24))
+                {
+                    bool enough = t.Sessions >= InsightService.MinimumSessionsPerSlot;
+                    <li style="@(enough ? null : "opacity:.55")">
+                        <div style="width:8.5em" class="small">@t.Label</div>
+                        <div class="grow"><div class="meter"><span style="width:@(t.AverageFocus * 20)%"></span></div></div>
+                        <span class="num small" style="width:2.5em;text-align:right">@(enough ? t.AverageFocus.ToString("0.0", CultureInfo.InvariantCulture) : "—")</span>
+                        <span class="faint small" style="width:4.5em;text-align:right">@t.Sessions 回</span>
+                    </li>
+                }
+            </ul>
+            <p class="faint small" style="margin:8px 0 0">集中度（1〜5）の平均。@InsightService.MinimumSessionsPerSlot 回未満の時間帯は参考として薄く表示しています。</p>
+        }
+    </section>
+
+    <section class="card-pm span-2">
+        <header><h2 class="card-title-icon"><Icon Name="shield" /> この分析について</h2></header>
+        <ul class="small muted" style="padding-left:1.2em;margin:0">
+            <li>2つの記録が「一緒に増えたり減ったりしているか」を、順位相関（スピアマンの ρ）で調べています。気分や集中度のような5段階の値や、極端に長く勉強した日があっても結果がぶれにくい方法です。</li>
+            <li>関係があっても、<strong>一方が他方の原因とは限りません</strong>。たとえば「よく眠った日に長く勉強している」のは、休日で時間があるからかもしれません。</li>
+            <li>記録が @(InsightReport.MinimumDays) 日分そろうまでは結果を出しません。95% 信頼区間が 0 をまたぐ（偶然でも起こりうる）ときは「はっきりした傾向は見られない」と表示します。</li>
+            <li>今日の分はまだ途中なので含めていません。この分析は自分のリズムを知る手がかりで、医療上の判断には使えません。</li>
+        </ul>
+    </section>
+</div>
+
+@code {
+    private InsightReport? report;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var profile = await Me.GetAsync();
+        report = await Service.BuildAsync(profile.UserId, profile.Zone);
+    }
+
+    private static string Axis(string label, string unit) => string.IsNullOrEmpty(unit) ? label : $"{label}（{unit}）";
+
+    /// <summary>相関の結果を、言いすぎない日本語にする</summary>
+    private static (string Kind, string Text) Describe(RelationInsight r, Correlation c)
+    {
+        if (!c.IsClear)
+            return ("", $"今のところ、{r.XLabel}と{r.YLabel}の間にはっきりした傾向は見られません。記録が増えると変わることがあります。");
+
+        double a = Math.Abs(c.R);
+        string strength = a < 0.2 ? "わずかな" : a < 0.4 ? "弱い" : a < 0.6 ? "中くらいの" : "強い";
+        string more = r.YLabel == "集中度" ? "高い" : "長い";
+        string less = r.YLabel == "集中度" ? "低い" : "短い";
+        string xMore = r.XLabel switch { "睡眠" => "よく眠った日", "気分" => "気分の良い日", "歩数" => "よく歩いた日", _ => $"{r.XLabel}が多い日" };
+        return c.R > 0
+            ? ("positive", $"{xMore}ほど、{r.YLabel}が{more}傾向があります（{strength}関係）。")
+            : ("negative", $"{xMore}ほど、{r.YLabel}が{less}傾向があります（{strength}関係）。");
+    }
+}

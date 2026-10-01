@@ -1,0 +1,75 @@
+@* 散布図。点は線幅だけで描く（枠に合わせて図を引き伸ばしても点が楕円にならない） *@
+<div class="sc-chart" role="img" aria-label="@AriaLabel" style="height:@F(Height)px">
+    <div class="hr-y" aria-hidden="true">
+        @foreach (var t in yTicks)
+        {
+            <span style="bottom:@F(Pct(t, yMin, yMax))%">@FormatTick(t)</span>
+        }
+    </div>
+    <div class="hr-plot">
+        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+            @foreach (var t in yTicks)
+            {
+                double y = 1000 - Pct(t, yMin, yMax) * 10;
+                <line class="hr-grid" x1="0" x2="1000" y1="@F(y)" y2="@F(y)" vector-effect="non-scaling-stroke" />
+            }
+            @foreach (var (x, y) in Points)
+            {
+                <path class="sc-dot" d="@Dot(x, y)" vector-effect="non-scaling-stroke" />
+            }
+        </svg>
+    </div>
+    <div class="hr-x" aria-hidden="true">
+        @foreach (var t in xTicks)
+        {
+            <span style="left:@F(Pct(t, xMin, xMax))%">@FormatTick(t)</span>
+        }
+    </div>
+</div>
+<div class="sc-caption faint">縦軸: @YLabel　横軸: @XLabel</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<(double X, double Y)> Points { get; set; } = [];
+
+    [Parameter] public string XLabel { get; set; } = "";
+
+    [Parameter] public string YLabel { get; set; } = "";
+
+    [Parameter] public double Height { get; set; } = 200;
+
+    [Parameter] public string AriaLabel { get; set; } = "";
+
+    private double xMin, xMax, yMin, yMax;
+    private double[] xTicks = [], yTicks = [];
+
+    protected override void OnParametersSet()
+    {
+        (xMin, xMax, xTicks) = Axis(Points.Select(p => p.X));
+        (yMin, yMax, yTicks) = Axis(Points.Select(p => p.Y));
+    }
+
+    /// <summary>きりのよい目盛りを3〜5本選び、少し余白を取った範囲を返す</summary>
+    private static (double Min, double Max, double[] Ticks) Axis(IEnumerable<double> values)
+    {
+        var list = values.ToList();
+        double lo = list.Count == 0 ? 0 : list.Min(), hi = list.Count == 0 ? 1 : list.Max();
+        if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+        double raw = (hi - lo) / 4;
+        double magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        double step = new[] { 1, 2, 2.5, 5, 10 }.Select(m => m * magnitude).First(s => s >= raw);
+        double start = Math.Floor(lo / step) * step, end = Math.Ceiling(hi / step) * step;
+        var ticks = new List<double>();
+        for (double t = start; t <= end + step / 2; t += step) ticks.Add(Math.Round(t, 6));
+        double pad = (end - start) * 0.04;
+        return (start - pad, end + pad, ticks.ToArray());
+    }
+
+    /// <summary>長さ 0 の線（丸い線端だけが見えるので点になる）</summary>
+    private string Dot(double x, double y) => $"M{F(Pct(x, xMin, xMax) * 10)},{F(1000 - Pct(y, yMin, yMax) * 10)}l0,0";
+
+    private static double Pct(double v, double min, double max) => Math.Clamp((v - min) / (max - min), 0, 1) * 100;
+
+    private static string FormatTick(double v) => Math.Abs(v) >= 1000 ? (v / 1000).ToString("0.#", CultureInfo.InvariantCulture) + "k" : v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

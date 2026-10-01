@@ -10,6 +10,7 @@ internal static class NavItems
         new("", "home", "ホーム", "ホーム", true),
         new("study", "study", "学習の記録", "学習", true),
         new("daily", "calendar", "毎日の記録", "記録", true),
+        new("insights", "insight", "分析", "分析", true),
         new("devices", "device", "機器・取り込み", "機器", false),
         new("settings", "settings", "設定", "設定", true),
     ];
