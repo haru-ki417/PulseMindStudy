@@ -7,7 +7,7 @@
 
 @if (profile is null)
 {
-    <div class="empty">読み込み中…</div>
+    <div class="empty loading">読み込み中…<small class="slow-note">しばらく使われていなかったときは、データの準備に数十秒かかることがあります。</small></div>
     return;
 }
 

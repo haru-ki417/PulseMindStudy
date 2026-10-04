@@ -4,7 +4,8 @@
 
 <AuthorizeView>
     <Authorized>
-        <Dashboard @rendermode="InteractiveServer" />
+        @* 事前描画をしない: データベースの起動を待たずに画面を返し、読み込み中の表示を先に出す *@
+        <Dashboard @rendermode="new InteractiveServerRenderMode(prerender: false)" />
     </Authorized>
     <NotAuthorized>
         <Landing />

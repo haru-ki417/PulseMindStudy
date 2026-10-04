@@ -42,6 +42,14 @@ builder.Services.AddDbContextFactory<PulseMindDbContext>(options =>
 });
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+// 休止しているデータベース（Azure SQL の無料枠）を、画面を開いた時点で裏で起こしておく
+builder.Services.AddSingleton<DatabaseWaker>();
+
+// 起動時のマイグレーション。本番（SQL Server）では裏で行い、データベースの起動を待たずに画面を返す
+bool migrateOnStartup = builder.Configuration.GetValue("Database:MigrateOnStartup", false);
+bool migrateInBackground = migrateOnStartup && !useSqlite && !builder.Environment.IsDevelopment();
+if (migrateInBackground) builder.Services.AddHostedService<BackgroundMigration>();
+
 // Cookie を暗号化する鍵をデータベースに保存する（再起動・複数台構成でもログインが切れないように）
 builder.Services.AddDataProtection()
     .SetApplicationName("PulseMindStudy")
@@ -149,8 +157,8 @@ else
     app.UseHsts();
 }
 
-// 起動時にデータベースを最新の形にする（設定で無効にできる）
-if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
+// 起動時にデータベースを最新の形にする（設定で無効にできる）。本番では上の BackgroundMigration が裏で行う
+if (migrateOnStartup && !migrateInBackground)
 {
     await using var scope = app.Services.CreateAsyncScope();
     var database = scope.ServiceProvider.GetRequiredService<PulseMindDbContext>().Database;
@@ -171,6 +179,26 @@ app.UseWhen(
     branch => branch.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();
+
+// 人が画面を開いたら、データベースを裏で起こし始める（待たずに次へ進む）。
+// 死活監視（/healthz）では起こさない。起こし続けると無料枠の時間を使い切ってしまうため
+if (!useSqlite)
+{
+    app.Use(async (context, next) =>
+    {
+        var path = context.Request.Path;
+        if (HttpMethods.IsGet(context.Request.Method)
+            && !path.StartsWithSegments("/healthz")
+            && !path.StartsWithSegments("/_blazor")
+            && !path.StartsWithSegments("/_framework")
+            && !path.StartsWithSegments("/api")
+            && !Path.HasExtension(path.Value))
+        {
+            context.RequestServices.GetRequiredService<DatabaseWaker>().Poke();
+        }
+        await next();
+    });
+}
 
 app.UseRateLimiter();
 app.UseAntiforgery();

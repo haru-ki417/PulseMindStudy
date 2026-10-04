@@ -33,3 +33,8 @@
     .today-figure .big-figure { font-size: 2.75rem; }
     .today-goal { align-items: stretch; width: 100%; }
 }
+
+/* 読み込みが長いときだけ、理由を添える（4 秒たってから表示） */
+.slow-note { display: block; margin-top: 8px; font-size: 13px; opacity: 0; animation: slow-note-in .4s ease 4s forwards; }
+@keyframes slow-note-in { to { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .slow-note { animation: none; opacity: .8; } }

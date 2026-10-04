@@ -1,0 +1,27 @@
+# 公開中のアプリが休止しないように、10 分ごとに死活監視のアドレスへアクセスする。
+# App Service の無料プラン（F1）は、20 分ほど使われないとアプリを止め、次のアクセスで起動し直す（ここに時間がかかる）。
+# /healthz はデータベースに触れないので、データベース（無料枠）はこれまでどおり休止でき、無料枠の時間を使わない。
+# 注意: GitHub は、リポジトリに 60 日間変更がないと、定期実行のワークフローを自動で止める（Actions の画面から再開できる）。
+name: Keep alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /healthz
+        env:
+          URL: ${{ vars.KEEPALIVE_URL || 'https://pulsemind-datzdltheb62e.azurewebsites.net/healthz' }}
+        run: |
+          for i in 1 2 3; do
+            if curl -fsS --max-time 120 -o /dev/null -w "%{http_code} %{time_total}s\n" "$URL"; then exit 0; fi
+            sleep 20
+          done
+          echo "::warning::$URL に接続できませんでした"

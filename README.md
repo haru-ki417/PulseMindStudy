@@ -5,7 +5,7 @@
 
 [![CI](https://github.com/haru-ki417/PulseMindStudy/actions/workflows/ci.yml/badge.svg)](https://github.com/haru-ki417/PulseMindStudy/actions/workflows/ci.yml)
 
-**公開中: https://pulsemind-datzdltheb62e.azurewebsites.net**（Azure App Service の無料プランで動かしているため、しばらく使われていないと最初の表示に数十秒かかります）
+**公開中: https://pulsemind-datzdltheb62e.azurewebsites.net**（Azure の無料枠で動かしています。データベースが休止しているときは、ログイン後の最初の読み込みに十数秒〜数十秒かかることがあります）
 
 ![ホーム画面](docs/screenshots/home.png)
 
